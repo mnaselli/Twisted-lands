@@ -1,0 +1,12 @@
+{
+    "window": {
+        "colours": {
+            "dark_bg": "#000000AA"
+        },
+        "misc": {
+            "border_width": 20,
+            "shadow_width": 20,
+            "title_bar_height": 1
+        }
+    }
+}
