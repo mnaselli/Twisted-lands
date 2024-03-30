@@ -5,11 +5,11 @@
 
 "[/smell]: ["roses", "lavender", "powder", "blood", "metal", "corpses", "rot", "mold", "dirt", "excrement", "ozone", "chemicals", "brine", "fish", "fruit", "carrion", "burning", "sweat", "petrichor"]
 
-"[/smellqual]: ["faint", "strong", "weak", "barely perceptible", "pungent", "invasive", "notorious"]
+"[/smellqual]": ["faint", "strong", "weak", "barely perceptible", "pungent", "invasive", "notorious"]
 
 
 
-"[/emotionpositive]: ["happiness", "tranquility", "valor", "bravery", "hope", "energy", "satisfaction", "cheerfulness", "courage"]
+"[/emotionpositive]": ["happiness", "tranquility", "valor", "bravery", "hope", "energy", "satisfaction", "cheerfulness", "courage"]
 
 
-"[/emotionnegative]: ["sadness", "fear", "foreboding", "dread", "hopelessness", "fatigue", "despair", "angst", "anger"]
+"[/emotionnegative]": ["sadness", "fear", "foreboding", "dread", "hopelessness", "fatigue", "despair", "angst", "anger"]
