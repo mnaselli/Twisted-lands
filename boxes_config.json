@@ -1,0 +1,20 @@
+{
+  "boxes": [
+    {
+      "id": "name_level_job",
+      "position": [200, 10],
+      "box_color": [0, 0, 0, 180],
+      "border_color": [0, 0, 0, 180],
+      "border_thickness": 3,
+      "font_size": 36
+    },
+    {
+      "id": "stats",
+      "position": [500, 100],
+      "box_color": [0, 0, 0, 180],
+      "border_color": [0, 0, 0, 180],
+      "border_thickness": 3,
+      "font_size": 24
+    }
+  ]
+}

@@ -7,21 +7,26 @@ Created on Mon Mar 25 23:38:49 2024
 import pygame
 import pygame_gui
 import random
+import json
 pygame.init()
 pygame.font.init()
 # =============================================================================
 # CLASSES
 # =============================================================================
 class Slide:
-    def __init__(self,slide_id, text_template, category, linked_slide_id=None, is_fight=False,background =None):
+    def __init__(self,slide_id, text_template, category,city_advancement = None,button_text = None, spell = None,item = None, previous_slide = None, linked_slide_id=None, is_fight=False,background =None):
         self.slide_id = slide_id
         self.text = text_template
         self.text_template = text_template
         self.category = category 
-        self.linked_slide_id = linked_slide_id if linked_slide_id is not None else [] 
+        self.linked_slide_id = linked_slide_id if linked_slide_id is not None else []
         self.is_fight = is_fight  # Flag to indicate if it's a fight slide
         self.background = background
-            
+        self.previous_slide = previous_slide
+        self.city_advancement = city_advancement if city_advancement is not None else 10 #aca despues lo pongo en random
+        self.use_spell = spell
+        self.use_item = item
+        self.button_text = button_text if button_text is not None else ["move forward"]
 
 class Character:
     def __init__(self,name,job,strenght,agility,lore,faith):
@@ -71,6 +76,9 @@ slides = {
         Slide("chainGiantTree1","You approach the giant tree and as you blink it dissapears","chain",background = "woodbackground"),
         Slide("chainGiantTree2","You approach the giant tree and as you blink it dissapears22","chain",background = "woodbackground"),
         Slide("chainGiantTree3","You go around the giant tree, and the trunk seems endless","chain",background = "woodbackground")
+    ],
+    "character": [
+        Slide("character_info","","character")
     ]
 }
 
@@ -89,9 +97,6 @@ backgrounds_paths = {
     "forest": "background/woodbackground.png",
     "city": "background/stonebackground.png",
 }
-
-
-
 
 # =============================================================================
 # CONFIG
@@ -115,15 +120,17 @@ button_wild = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((50, 550), 
                                            text='Wild',
                                            manager=ui_manager)
 
-button_city = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((300, 550), (200, 50)),
-                                           text='City',
+button_city = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((550, 550), (120, 50)),
+                                           text='Visit city',
                                            manager=ui_manager)
 
-button_encounter = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((550, 550), (200, 50)),
-                                                 text='Encounter',
-                                                 manager=ui_manager)
+# =============================================================================
+# button_encounter = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((550, 550), (200, 50)),
+#                                                  text='Encounter',
+#                                                  manager=ui_manager)
+# =============================================================================
 
-character_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((10, 10), (50, 30)),
+character_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((710, 10), (50, 30)),
                                                 text='C',
                                                 manager=ui_manager)
 
@@ -145,7 +152,7 @@ button_paths = []
 button_paths_ids = []  # This will store the next slide IDs corresponding to each button in button_paths
 
 
-testy = Character("Testy","wanderer",1,1,1,1)
+testy = Character("Testy","Test character",1,1,1,1)
 
 character_window_reference = None
 current_slide_text = current_slide.text
@@ -159,7 +166,48 @@ def generate_dynamic_text(template_text, options_dict):
             template_text = template_text.replace(placeholder, random.choice(choices), 1)
     return template_text
 
+def draw_box_with_border(window, text, box_config, font_path="UglyQua.ttf"):
+    font_size = box_config.get("font_size", 24)
+    font = pygame.font.Font(font_path, font_size)
+    text_surface = font.render(text, True, (255, 255, 255))
+    text_width, text_height = text_surface.get_size()
 
+    padding = 10  # Adjust the padding around the text
+    box_width = text_width + 2 * padding
+    box_height = text_height + 2 * padding
+    position = box_config["position"]
+
+    # Create and fill the box surface
+    box_surface = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+    box_surface.fill(box_config["box_color"])
+
+    # Draw the text onto the box surface
+    box_surface.blit(text_surface, (padding, padding))
+
+    # Draw the border
+    pygame.draw.rect(box_surface, box_config["border_color"], (0, 0, box_width, box_height), box_config["border_thickness"])
+
+    # Blit the box surface onto the main window
+    window.blit(box_surface, position)
+
+def display_character_info(character):
+    # This is a simplified example. Adjust according to your UI design.
+    
+    button_wild.hide()
+    #button_city.hide()
+    #button_encounter.hide()
+    for btn in button_paths:
+        btn.hide()
+    
+    with open("boxes_config.json", "r") as file:
+        boxes_config = json.load(file)["boxes"]
+        
+    texts= [f"{character.name}  Level: {character.level} {character.job}",
+            f"ATTRIBUTES \n \n Strenght: {character.strenght} \n Agilityt: {character.agility} \n Lore: {character.lore} \n Faith: {character.faith}"]
+    
+    for text, box in zip(texts, boxes_config):
+        draw_box_with_border(window, text, box)
+    
 
 # =============================================================================
 # # =============================================================================
@@ -171,7 +219,7 @@ def render_slide(window, text):
     words = text.split(' ')  # Split the text into words
     line = ""  # Current line being assembled
     for word in words:
-        test_line = f"{line} {word}".strip()  # Try adding the next word
+        test_line = f"{line} {word}".strip()  
         # Check if this line's width exceeds a certain limit
         if font.size(test_line)[0] > 760:  # 760px wide for some margin
             text_lines.append(line)  # Save the previous line
@@ -197,12 +245,12 @@ def update_buttons_for_slide(slide):
         # If the current slide is part of a chain, show only the "Next Slide" button.
             button_wild.hide()
             button_city.hide()
-            button_encounter.hide()
+            #button_encounter.hide()
         else:
             # If the slide is not part of a chain, show the category buttons and hide the "Next Slide" button.
             button_wild.show()
             button_city.show()
-            button_encounter.show()
+            #button_encounter.show()
 
 
 def get_linked_slide(linked_slide_id):
@@ -253,58 +301,19 @@ def update_path_buttons(slide, ui_manager):
         button_paths.append(btn)
         button_paths_ids.append(slide_id)
 
-
-
-# =============================================================================
-# =============================================================================
-# # WINDOW
-# =============================================================================
-# =============================================================================
-
-def create_character_window(ui_manager, character):
-    global character_window_reference
-    # Window dimensions and position
-    if character_window_reference is not None:
-            # The window already exists, so you could either do nothing or focus the existing window
-            # For example, do nothing or bring the window to front if supported
-            return    
-    window_rect = pygame.Rect((0, 0), (800, 600))
-    character_window = pygame_gui.elements.UIWindow(rect=window_rect,
-                                                   manager=ui_manager,
-                                                   window_display_title= "caracter info"#,
-#                                                     object_id="#character_window")
-# =============================================================================
-                                                    )
-    character_window_reference = character_window                                               
-    # Close button
-# =============================================================================
-#     close_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((370, 2), (28, 28)),
-#                                                 text='X',
-#                                                 manager=ui_manager,
-#                                                 container=character_window,
-#                                                 tool_tip_text='Close')
-# =============================================================================
-
-    # Display character attributes
-    name_label = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((10, 40), (380, 50)),
-                                             text=f"{character.name} - Level: {character.level}  {character.job} ",
-                                             manager=ui_manager,
-                                             container=character_window)
-# =============================================================================
-# 
-#     level_label = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((10, 90), (380, 50)),
-#                                               text=f"Level: {character.level}",
-#                                               manager=ui_manager,
-#                                               container=character_window)
-# 
-#     health_label = pygame_gui.elements.UILabel(relative_rect=pygame.Rect((10, 140), (380, 50)),
-#                                                text=f"Health: {character.job}",
-#                                                manager=ui_manager,
-#                                                container=character_window)
-
-
-
-
+def on_character_button_click():
+    global current_slide
+    if current_slide.slide_id != "character_info":
+        # Save the current slide as the previous slide of the character info slide
+        character_slide = getSlidebyID("character_info")
+        character_slide.previous_slide = current_slide.slide_id
+        current_slide = character_slide
+    elif current_slide.previous_slide is not None:
+        # Go back to the previous slide
+        current_slide = getSlidebyID(current_slide.previous_slide)
+        if button_paths:
+            for btn in button_paths:
+                btn.show()
 
 # =============================================================================
 # LOOP
@@ -322,23 +331,17 @@ while running:
             running = False
     
         ui_manager.process_events(event)
-        
-        
-        if event.type == pygame_gui.UI_WINDOW_CLOSE:
-            if event.ui_element == character_window_reference:
-                character_window_reference = None  # Reset the reference when the window is closed
-            
-            
             
         if event.type == pygame_gui.UI_BUTTON_PRESSED:
-            if event.ui_element in [button_wild, button_city, button_encounter]:
+            if event.ui_element ==button_wild:
                 # Handles category button clicks
-                category = 'wild' if event.ui_element == button_wild else ('city' if event.ui_element == button_city else 'encounter')
+                category = 'wild'
 
                 on_category_button_click(category)  # Function to handle category selection
 
-                current_slide_text = generate_dynamic_text(current_slide.text_template, text_options)
+                #current_slide_text = generate_dynamic_text(current_slide.text_template, text_options)
                 update_buttons_for_slide(current_slide)  # Update buttons based on the new slide
+                update_path_buttons(current_slide, ui_manager)
 
             elif event.ui_element in button_paths:
                 # Handles clicks on dynamically created path buttons
@@ -353,31 +356,33 @@ while running:
                     else:
                         # Logic to handle the end of a chain
                         button_wild.show()
-                        button_city.show()
-                        button_encounter.show()
+                        #button_city.show()
+                        #button_encounter.show()
                         for btn in button_paths:  # Remove path buttons
                             btn.kill()
                         button_paths.clear()
                         button_paths_ids.clear()
-            if event.type == pygame_gui.UI_BUTTON_PRESSED:
-                if event.ui_element in button_paths:
+# =============================================================================
+#             if event.type == pygame_gui.UI_BUTTON_PRESSED:
+#                 if event.ui_element in button_paths:
+# =============================================================================
+                if event.ui_element in button_paths:                
                     index = button_paths.index(event.ui_element)
                     # Handle the button click as before
+                update_path_buttons(current_slide, ui_manager)
+# =============================================================================
+#             if event.type == pygame_gui.UI_BUTTON_PRESSED:
+#                 if current_slide.linked_slide_id:
+#                     update_path_buttons(current_slide, ui_manager)            
+# =============================================================================
             
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
-
+                if event.ui_element == character_button:
+                    on_character_button_click()
             
-                
-                if current_slide.linked_slide_id:
-                    update_path_buttons(current_slide, ui_manager)            
+           
             current_slide_text = generate_dynamic_text(current_slide.text_template, text_options)
             update_buttons_for_slide(current_slide)  # Update button visibility based on the new current slide.
-         
-        if event.type == pygame_gui.UI_BUTTON_PRESSED:
-            if event.ui_element == character_button:
-                create_character_window(ui_manager, testy)  # Assuming you have a character instance   
-         
-            
          
         ui_manager.process_events(event)
 
@@ -391,7 +396,12 @@ while running:
     window.blit(background_image, (0, 0))
     
     # Now, render the slide text on top of the background
-    render_slide(window, current_slide_text)
+    if current_slide.category == "character":
+        # Special rendering for the character info slide
+        display_character_info(testy)  # You'll define this function
+    else:
+        # Regular slide rendering
+        render_slide(window, current_slide_text)
     
     # Process UI events and update the UI elements
     ui_manager.process_events(event)
