@@ -68,7 +68,7 @@ class Character:
         self.job = job
         self._strength = strength
         self._agility = agility
-        self._lore = lore  # Category of the slide
+        self._lore = lore 
         self._faith = faith
         self.endurance = 100
         self.current_endurance = 100
@@ -79,8 +79,8 @@ class Character:
         self.crit_chance = 0.30
         self.carry_weight_base = 50
         self.armor = 10
-        self._spell_skill_base = 1
-        self._ritual_skill_base = 1
+        self._spell_rating_base = 1
+        self._ritual_rating_base = 1
         self.block = 0.1
         self.parry = 0.1
         self.perks = []
@@ -138,12 +138,12 @@ class Character:
         return self._carry_weight_base + self.strength * 5
 
     @property
-    def spell_skill(self):
-        return self._spell_skill_base + 0.5 * self.lore
+    def spell_rating(self):
+        return self._spell_rating_base + 0.5 * self.lore
 
     @property
-    def ritual_skill(self):
-        return self._ritual_skill_base + 0.5 * self.faith
+    def ritual_rating(self):
+        return self._ritual_rating_base + 0.5 * self.faith
 
     def equip_item(self, item):
         # Check if an item of the same type is already equipped and unequip it first
@@ -180,6 +180,35 @@ class Character:
             setattr(self, stat, getattr(self, stat) - modifier)
 
 
+# =============================================================================
+# =============================================================================
+# # Creature
+# =============================================================================
+# =============================================================================
+
+class Creature:
+    def __init__(self,name):
+        self.name = name
+        self.endurance = 100
+        self.current_endurance = 100
+        self.accuracy = 0.75
+        self._dodge = 0.3
+        self.crit_chance = 0.30
+        self.armor = 10
+        self._spell_rating_base = 1
+        self.block = 0.1
+        self.parry = 0.1
+        self.perks = []
+        self.spells_known = []
+        self.head_hp = 20
+        self.torso_hp = 50
+        self.rarm_hp = 10
+        self.larm_hp = 10
+        self.legs_hp = 10
+        self.inventory = []
+        self.equipped_weapon = None
+        self.equipped_armor = None
+        self.availible_actions = [bite_attack,claw_attack]
 
 
 
@@ -425,12 +454,22 @@ def display_character_info(character):
         
     texts= [f"{character.name}  Level: {character.level} {character.job}",
             f"ATTRIBUTES \n Strenght: {character.strength} \n Agility: {character.agility} \n Lore: {character.lore} \n Faith: {character.faith}",
-            f"SECONDARY \n Accuracy: {character.accuracy} \n Dodge: {character._dodge} \n Crit chance: {character.crit_chance} \n Weight: 0 / {character.carry_weight_base} \n Armor  \n Block: {character.block} \n Parry: {character.parry} \n Dodge: {character.armor} \n Spell Skill: {character._spell_skill_base} \n Ritual Skill: {character._ritual_skill_base}" ,
+            f"SECONDARY \n Accuracy: {character.accuracy} \n Dodge: {character._dodge} \n Crit chance: {character.crit_chance} \n Weight: 0 / {character.carry_weight_base} \n Armor  \n Block: {character.block} \n Parry: {character.parry} \n Dodge: {character.armor} \n Spell Skill: {character._spell_rating_base} \n Ritual Skill: {character._ritual_rating_base}" ,
             f"SURVIVAL \n Endurance: {character.current_endurance}/{character.endurance} \n Sustenance: {character.current_sustenance}/{character.sustenance} \n Corruption: ph/ph"
             ]
     
     for text, box in zip(texts, boxes_config):
         draw_box_with_border(window, text, box)
+
+def display_combat_info():
+    button_wild.hide()
+    button_city.hide()
+    for btn in button_paths_linked + button_paths_test:
+        btn.hide()
+    
+    
+
+
     
 def agility_test(character):
     # Placeholder logic for agility test
