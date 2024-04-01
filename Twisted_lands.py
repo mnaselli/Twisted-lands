@@ -13,6 +13,15 @@ pygame.font.init()
 # =============================================================================
 # CLASSES
 # =============================================================================
+
+
+# =============================================================================
+# =============================================================================
+# # Slide
+# =============================================================================
+# =============================================================================
+
+
 class Slide:
     def __init__(self,slide_id, text_template, category,test = None,city_advancement = None,button_text = None, spell = None,item = None, previous_slide = None, success_slide_id = None, fail_slide_id = None, linked_slide_id=None, is_fight=False,background =None):
         self.slide_id = slide_id
@@ -34,31 +43,185 @@ class Slide:
     def is_terminal(self):
         return not self.linked_slide_id and not self.success_slide_id
 
-    
 
 
-class Character:
-    def __init__(self,name,job,strenght,agility,lore,faith):
-        self.name = name
-        self.level = 1
-        self.job = job
-        self.strenght = strenght
-        self.agility = agility
-        self.lore = lore  # Category of the slide
-        self.faith = faith
-        
-        
 def getSlidebyID(slide_id):
     for category in slides.values():
         for slide in category:  
             if slide.slide_id == slide_id:  
-                return slide      
+                return slide  
 
+
+
+# =============================================================================
+# =============================================================================
+# # Character 
+# =============================================================================
+# =============================================================================
+
+
+class Character:
+    def __init__(self,name,job,strength,agility,lore,faith):
+        self.name = name
+        self.level = 1
+        self.experience = 0
+        self.job = job
+        self._strength = strength
+        self._agility = agility
+        self._lore = lore  # Category of the slide
+        self._faith = faith
+        self.endurance = 100
+        self.current_endurance = 100
+        self.sustenance = 100
+        self.current_sustenance = 100
+        self.accuracy = 0.75
+        self._dodge = 0.3
+        self.crit_chance = 0.30
+        self.carry_weight_base = 50
+        self.armor = 10
+        self._spell_skill_base = 1
+        self._ritual_skill_base = 1
+        self.block = 0.1
+        self.parry = 0.1
+        self.perks = []
+        self.spells_known = []
+        self.rituals_known = []
+        self.head_hp = 20
+        self.torso_hp = 50
+        self.rarm_hp = 10
+        self.larm_hp = 10
+        self.legs_hp = 10
+        self.inventory = []
+        self.equipped_weapon = None
+        self.equipped_armor = None
+        
+    
+    @property
+    def strength(self):
+        return self._strength
+
+    @strength.setter
+    def strength(self, value):
+        self._strength = value
+
+    @property
+    def agility(self):
+        return self._agility
+
+    @agility.setter
+    def agility(self, value):
+        self._agility = value
+
+    @property
+    def lore(self):
+        return self._lore
+
+    @lore.setter
+    def lore(self, value):
+        self._lore = value
+
+    @property
+    def faith(self):
+        return self._faith
+
+    @faith.setter
+    def faith(self, value):
+        self._faith = value
+    
+    
+    @property
+    def dodge(self):
+        return self._dodge + 0.1 * self.agility
+
+    @property
+    def carry_weight(self):
+        return self._carry_weight_base + self.strength * 5
+
+    @property
+    def spell_skill(self):
+        return self._spell_skill_base + 0.5 * self.lore
+
+    @property
+    def ritual_skill(self):
+        return self._ritual_skill_base + 0.5 * self.faith
+
+    def equip_item(self, item):
+        # Check if an item of the same type is already equipped and unequip it first
+        if item.item_type == 'weapon':
+            if self.equipped_weapon:
+                self.unequip_item('weapon')
+            self.equipped_weapon = item
+        elif item.item_type == 'armor':
+            if self.equipped_armor:
+                self.unequip_item('armor')
+            self.equipped_armor = item
+        
+        # Apply the new item's effects
+        self.apply_item_effects(item)
+    
+    def unequip_item(self, item_type):
+        # Only try to unequip if there is an item equipped in the slot
+        if item_type == 'weapon' and self.equipped_weapon:
+            self.remove_item_effects(self.equipped_weapon)
+            self.equipped_weapon = None
+        elif item_type == 'armor' and self.equipped_armor:
+            self.remove_item_effects(self.equipped_armor)
+            self.equipped_armor = None
+    
+    def apply_item_effects(self, item):
+        # Apply stat modifiers and special abilities from the item
+        for stat, modifier in item.stat_modifiers:
+            setattr(self, stat, getattr(self, stat) + modifier)
+
+
+    def remove_item_effects(self, item):
+        # Reverse stat modifiers when an item is unequipped
+        for stat, modifier in item.stat_modifiers:
+            setattr(self, stat, getattr(self, stat) - modifier)
+
+
+
+
+
+# =============================================================================
+# =============================================================================
+# # ITEMS
+# =============================================================================
+# =============================================================================
+
+class Item:
+    def __init__(self, name, item_type, damage=None, stat_modifiers=None, special_abilities=None):
+        self.name = name
+        self.item_type = item_type  # 'armor' or 'weapon'
+        self.damage = damage
+        self.stat_modifiers = stat_modifiers if stat_modifiers else []
+        self.special_abilities = special_abilities if special_abilities else []
+
+def increase_speed(character):
+    character.agility += 1 
+def heal(character):
+    character.health += 10
 
 
 # =============================================================================
 # GAME DEF
 # =============================================================================
+
+items = {
+    "armor": [
+        Item("Boots of Swiftness","armor",stat_modifiers=[("agility", 1)],special_abilities=[increase_speed])
+    ],
+    "weapon": [
+        Item("Shortsword","weapon",damage = 5,stat_modifiers=["strength,2"])     
+    ],
+    "consumable": [
+        Item("potion","consumable",special_abilities=[heal])
+    ] 
+    }
+
+
+
+
 
 slides = {
     "start": [
@@ -68,14 +231,14 @@ slides = {
         #Slide("wild1","You're wandering in a dense forest. Birds are chirping.","wild"),
         #Slide("wild2","A clearing in the forest reveals a peaceful river.","wild"),
         Slide("wild3","The path leads you to the edge of a cliff with a breathtaking view.","wild"),
-        Slide("wild4","A clearing in the forest reveals a giant tree.","wild", linked_slide_id=["chainGiantTree1","chainGiantTree2","chainGiantTree3"]),
-        Slide("wild5","You enter the grove. [/color] flowers surround you filling the air with a [/smellqual] aroma of [/smell]. The birds sing, filling you with [/emotion].","wild"),
-        Slide("wild6","You are crossing a bridge and it starts to break","wild", success_slide_id=["bridge_success"],fail_slide_id=["bridge_fail1,bridge_fail2"],button_text = ["run fast to the end","take a big jump"],test = ["agility","strength"]),
+        #Slide("wild4","A clearing in the forest reveals a giant tree.","wild", linked_slide_id=["chainGiantTree1","chainGiantTree2","chainGiantTree3"]),
+        #Slide("wild5","You enter the grove. [/color] flowers surround you filling the air with a [/smellqual] aroma of [/smell]. The birds sing, filling you with [/emotion].","wild"),
+        Slide("wild6","You are crossing a bridge and it starts to break","wild", success_slide_id=["bridge_success"],fail_slide_id=["bridge_fail1","bridge_fail2"],button_text = ["run fast to the end","take a big jump"],test = ["agility","strength"]),
     ],
     "city": [
-        Slide("city1","You arrive to the city of ......","city", background="city"),
-        Slide("city2","You stand before the doors of ......","city", background="city"),
-        Slide("city3","At the distance you see the great city of .........","city", background="city")
+        Slide("Saklas","You arrive to the city of Saklas","city",linked_slide_id=["TheTavernavcle","Divineprovidence","Temple"],button_text = ["visit The Tavernavcle","visit Divine providence","visit Temple"],background="city"),
+        Slide("Iyao","You arrive to the city of Iyao","city",linked_slide_id=["TheLongRest","ScalpelSteel","Hospital"],button_text = ["visit The Long Rest","visit Scalpel Steel","visit Hospital"],background="city"),
+        Slide("Bapth ","You arrive to the city of Bapth ","city",linked_slide_id=["Champion’sFeast","Hero’sArsenal","Granforja"],button_text = ["visit Champion’s Feast","visit Hero’s Arsenal","Gran forja"],background="city"),
     ],
     "chain": [
         Slide("chainGiantTree1","You approach the giant tree and as you blink it dissapears","chain",background = "woodbackground"),
@@ -83,13 +246,28 @@ slides = {
         Slide("chainGiantTree3","You go around the giant tree, and the trunk seems endless","chain",background = "woodbackground")
     ],
     "test": [
-        Slide("bridge_success","You approach the giant tree and as you blink it dissapears","ctest"),
+        Slide("bridge_success","You reach the other side of the bridge safely","test"),
         Slide("bridge_fail1","You are not fast enough and fall taking X damage","test"),
         Slide("bridge_fail2","Your jump is not long enough and you fall taking X damage","test"),
     ],
     "character": [
         Slide("character_info","","character")
-    ]
+    ],
+    "tavern": [
+        Slide("TheTavernavcle","Taverna Saklas","tavern",background="city"),
+        Slide("TheLongRest","Taverna Iyao","tavern",background="city"),
+        Slide("Champion’sFeast","Taverna Bapth","tavern",background="city")
+    ],
+    "shop": [
+        Slide("Divineprovidence","shop Saklas","shop",background="city"),
+        Slide("ScalpelSteel","shop Iyao","shop",background="city"),
+        Slide("Hero’sArsenal","shop Bapth","shop",background="city")
+        ],
+    "sp_ed": [
+        Slide("Temple","Temple Saklas","sp_ed",background="city"),
+        Slide("Hospital","Hospital Iyao","sp_ed",background="city"),
+        Slide("Granforja","Gran forja Bapth","sp_ed",background="city")
+        ]
 }
 
 
@@ -137,10 +315,20 @@ button_city = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((550, 550),
                                            text='Visit city',
                                            manager=ui_manager)
 
-character_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((710, 10), (50, 30)),
+button_character = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((710, 10), (50, 30)),
                                                 text='C',
                                                 manager=ui_manager)
 
+button_body_mind = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((200, 300), (150, 50)),
+                                           text='BODY AND MIND',
+                                           manager=ui_manager)
+
+button_quest = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((200, 360), (120, 50)),
+                                           text='QUEST',
+                                           manager=ui_manager)
+
+button_body_mind.hide()
+button_quest.hide()
 
 # =============================================================================
 # GLOBALS
@@ -152,12 +340,8 @@ current_category = "start"
 
 current_slide = getSlidebyID("0")
 
-
+city_distance = 0
 background_image = loaded_backgrounds.get(current_slide.background, loaded_backgrounds["default"])
-
-button_paths = []
-button_paths_ids = []  # This will store the next slide IDs corresponding to each button in button_paths
-
 
 button_paths_linked = []
 button_paths_ids_linked = []
@@ -168,6 +352,27 @@ testy = Character("Testy","Test character",1,1,1,1)
 
 character_window_reference = None
 current_slide_text = current_slide.text
+
+
+
+
+# =============================================================================
+# DEBUG 
+# =============================================================================
+
+is_debug_mode = False
+debug_input = pygame_gui.elements.UITextEntryLine(relative_rect=pygame.Rect((350, 10), (140, 30)), manager=ui_manager, visible=0)
+debug_input.set_text('Enter var name')
+
+
+def toggle_debug_mode():
+    global is_debug_mode
+    is_debug_mode = not is_debug_mode
+    if is_debug_mode:
+        debug_input.show()  # Show the debug input field
+    else:
+        debug_input.hide()  # Hide the debug input field
+
 # =============================================================================
 # FUNCIONES
 # =============================================================================
@@ -207,7 +412,9 @@ def display_character_info(character):
     
     button_wild.hide()
     button_city.hide()
-    #button_encounter.hide()
+    button_body_mind.show()
+    button_quest.show()
+    
     for btn in button_paths_linked + button_paths_test:
         btn.hide()
     
@@ -217,18 +424,21 @@ def display_character_info(character):
         boxes_config = json.load(file)["boxes"]
         
     texts= [f"{character.name}  Level: {character.level} {character.job}",
-            f"ATTRIBUTES \n \n Strenght: {character.strenght} \n Agilityt: {character.agility} \n Lore: {character.lore} \n Faith: {character.faith}"]
+            f"ATTRIBUTES \n Strenght: {character.strength} \n Agility: {character.agility} \n Lore: {character.lore} \n Faith: {character.faith}",
+            f"SECONDARY \n Accuracy: {character.accuracy} \n Dodge: {character._dodge} \n Crit chance: {character.crit_chance} \n Weight: 0 / {character.carry_weight_base} \n Armor  \n Block: {character.block} \n Parry: {character.parry} \n Dodge: {character.armor} \n Spell Skill: {character._spell_skill_base} \n Ritual Skill: {character._ritual_skill_base}" ,
+            f"SURVIVAL \n Endurance: {character.current_endurance}/{character.endurance} \n Sustenance: {character.current_sustenance}/{character.sustenance} \n Corruption: ph/ph"
+            ]
     
     for text, box in zip(texts, boxes_config):
         draw_box_with_border(window, text, box)
     
 def agility_test(character):
     # Placeholder logic for agility test
-    return random.choice([True, False])
+    return True#random.choice([True, False])
 
 def strength_test(character):
     # Placeholder logic for strength test
-    return random.choice([True, False])
+    return False#random.choice([True, False])
 
 
 # =============================================================================
@@ -259,31 +469,7 @@ def render_slide(window, text):
         
         
 
-def update_buttons_for_slide(slide):
-    global button_paths, button_paths_ids
-    if current_slide:
-        render_slide(window, current_slide.text)
-        if slide.linked_slide_id:
-        # If the current slide is part of a chain, show only the "Next Slide" button.
-            button_wild.hide()
-            button_city.hide()
-            #button_encounter.hide()
-        else:
-            # If the slide is not part of a chain, show the category buttons and hide the "Next Slide" button.
-            button_wild.show()
-            button_city.show()
-            #button_encounter.show()
-
-
-def get_linked_slide(linked_slide_id):
-    for category in slides.values():
-        for slide in category:
-            if slide.slide_id == linked_slide_id:
-                return slide
-    return None
-
-def select_random_slide(category):
-    
+def select_random_slide(category):   
     global current_slide
     if category in slides:
         current_slide = random.choice(slides[category])  
@@ -308,8 +494,11 @@ def on_character_button_click():
         character_slide = getSlidebyID("character_info")
         character_slide.previous_slide = current_slide.slide_id
         current_slide = character_slide
+        update_path_buttons(current_slide, ui_manager)
     elif current_slide.previous_slide is not None:
         # Go back to the previous slide
+        button_body_mind.hide()
+        button_quest.hide()
         current_slide = getSlidebyID(current_slide.previous_slide)
         if button_paths_linked or button_paths_test :
             for btn in button_paths_linked + button_paths_test:
@@ -318,11 +507,16 @@ def on_character_button_click():
 
 def update_path_buttons(slide, ui_manager):
     
-    global button_paths_linked, button_paths_ids_linked,button_paths_linked_test, button_paths_ids_test
+    global button_paths_linked, button_paths_ids_linked,button_paths_test, button_paths_ids_test
     if slide.is_terminal():
         button_wild.show()
     else:
         button_wild.hide()
+        
+    if slide.is_terminal() and city_distance >= 100:
+        button_city.show()
+    else:
+        button_city.hide()
     
     for btn in button_paths_linked + button_paths_test:
         btn.kill()
@@ -363,97 +557,121 @@ def update_path_buttons(slide, ui_manager):
             button_paths_test.append(btn)
             # Store the test function along with the index
             button_paths_ids_test.append((test_functions[index], index))
+            
+            
+    
 # =============================================================================
 # LOOP
 # =============================================================================
 
 running = True
-
+button_city.hide()
 
 
 while running:
     time_delta = clock.tick(60)/1000.0
     
     for event in pygame.event.get():
+        
+        #ui_manager.process_events(event)
         if event.type == pygame.QUIT:
             running = False
     
-        ui_manager.process_events(event)
+    
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F1:  # Toggle debug mode with F1
+            toggle_debug_mode()
+        
+        if event.type == pygame_gui.UI_TEXT_ENTRY_FINISHED and event.ui_element == debug_input:
+            var_name = event.text  # Get the entered text
+            if var_name and var_name != "Enter var name":  # Validate the input
+                try:
+                    var_value = eval(var_name, globals(), locals())
+                    print(f"{var_name}: {var_value}")  # Print or display the value
+                except Exception as e:
+                    print(f"Error: {str(e)}")
             
+        
+        
+        # Process UI events in the main event loop
+        #ui_manager.process_events(event)
+            # =============================================================================
+             # terminal slide loop             
+            # =============================================================================
+        
         if event.type == pygame_gui.UI_BUTTON_PRESSED:
             if event.ui_element == button_wild:
-                select_random_slide("wild")  # Set the current slide to a random wild slide
-                update_buttons_for_slide(current_slide)  # Update UI buttons for the new slide
+                select_random_slide("wild")
                 update_path_buttons(current_slide, ui_manager) 
+                city_distance += current_slide.city_advancement
+
+
+            elif event.ui_element == button_city:
+                select_random_slide("city")
+                update_path_buttons(current_slide, ui_manager)
+                city_distance = 0
+            # =============================================================================
+             # linked loop             
+            # =============================================================================
             
-            
-            if event.ui_element in button_paths_linked:
+            elif event.ui_element in button_paths_linked:
                 index = button_paths_linked.index(event.ui_element)
                 linked_slide_id = button_paths_ids_linked[index]
                 current_slide = getSlidebyID(linked_slide_id)
                 update_path_buttons(current_slide, ui_manager)  # Update buttons for the new slide
-
+                city_distance += current_slide.city_advancement
+            # =============================================================================
+             # test loop             
+            # =============================================================================
+            elif event.ui_element in button_paths_test:
+                index = button_paths_test.index(event.ui_element)
+                test_function, action_index = button_paths_ids_test[index]
             
-            if event.type == pygame_gui.UI_BUTTON_PRESSED:
-                if event.ui_element in button_paths_test:
-                    index = button_paths_test.index(event.ui_element)
-                    test_function, action_index = button_paths_ids_test[index]
+                # Call the test function
+                test_passed = test_function(testy)
+                if test_passed:
+                    next_slide_id = current_slide.success_slide_id[0]  # Navigate to success slide
+                else:
+                    next_slide_id = current_slide.fail_slide_id[action_index]  # Navigate to specific fail slide
+        
+                current_slide = getSlidebyID(next_slide_id)
+                
+                update_path_buttons(current_slide, ui_manager)
+                city_distance += current_slide.city_advancement
+             # =============================================================================
+             # character         
+             # =============================================================================       
+             
+            elif event.ui_element == button_character:
+                on_character_button_click()
             
-                    # Call the test function
-                    test_passed = test_function(testy)  # Assuming `testy` is your character instance
             
-                    if test_passed:
-                        next_slide_id = current_slide.success_slide_id[0]  # Navigate to success slide
-                    else:
-                        next_slide_id = current_slide.fail_slide_id[action_index]  # Navigate to specific fail slide
             
-                    current_slide = getSlidebyID(next_slide_id)
-                    
-                    update_path_buttons(current_slide, ui_manager)
+            current_slide_text = current_slide.text
+            update_path_buttons(current_slide, ui_manager)
             
-# =============================================================================
-#             if event.ui_element ==button_wild:
-#                 # Handles category button clicks
-#                 category = 'wild'
-# 
-#                 on_category_button_click(category)  # Function to handle category selection
-# 
-#                 #current_slide_text = generate_dynamic_text(current_slide.text_template, text_options)
-#                 update_buttons_for_slide(current_slide)  # Update buttons based on the new slide
-#                 update_path_buttons(current_slide, ui_manager)
-# 
-#             elif event.ui_element in button_paths:
-#                 # Handles clicks on dynamically created path buttons
-#                 index = button_paths.index(event.ui_element)  # Find the pressed button
-#                 slide_id = button_paths_ids[index]  # Get the associated slide ID
-#                 next_slide = get_linked_slide(slide_id)  # Retrieve the slide object
-#                 if next_slide:
-#                     current_slide = next_slide  # Transition to the next slide
-#                     current_slide_text = generate_dynamic_text(current_slide.text_template, text_options)  # Update text
-#                     if current_slide.linked_slide_id:
-#                         update_path_buttons(current_slide, ui_manager)  # Update buttons for the next slide
-#                     else:
-#                         # Logic to handle the end of a chain
-#                         button_wild.show()
-#                         #button_city.show()
-#                         #button_encounter.show()
-#                         for btn in button_paths:  # Remove path buttons
-#                             btn.kill()
-#                         button_paths.clear()
-#                         button_paths_ids.clear()
-# =============================================================================
             
-            if event.type == pygame_gui.UI_BUTTON_PRESSED:
-                if event.ui_element == character_button:
-                    on_character_button_click()
-            
+            # =============================================================================
+            # DEBUG         
+            # =============================================================================              
            
-            current_slide_text = generate_dynamic_text(current_slide.text_template, text_options)
-            #update_buttons_for_slide(current_slide)  # Update button visibility based on the new current slide.
-         
-        ui_manager.process_events(event)
+    if is_debug_mode:
+        var_name = debug_input.get_text()
+        if var_name and var_name != "Enter var name":  # Check if input is not placeholder or empty
+            try:
+                # Dynamically get the value of the variable
+                var_value = eval(var_name, globals(), locals())  # Use globals() and locals() for safety
+                debug_text = f"{var_name}: {var_value}"
+                font = pygame.font.SysFont("Arial", 24)
+                debug_surf = font.render(debug_text, True, (255, 255, 255))
+                window.blit(debug_surf, (10, 50))
+            except Exception as e:  # Catch any error
+                debug_text = f"Error: {str(e)}"
+                font = pygame.font.SysFont("Arial", 24)
+                debug_surf = font.render(debug_text, True, (255, 255, 255))
+                window.blit(debug_surf, (10, 50))
 
 
+    
 
     # If you need to check for a linked slide or a fight
     if current_slide.background and current_slide.background in loaded_backgrounds:
@@ -465,7 +683,7 @@ while running:
     # Now, render the slide text on top of the background
     if current_slide.category == "character":
         # Special rendering for the character info slide
-        display_character_info(testy)  # You'll define this function
+        display_character_info(testy)
     else:
         # Regular slide rendering
         render_slide(window, current_slide_text)
