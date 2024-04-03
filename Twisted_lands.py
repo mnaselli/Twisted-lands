@@ -87,10 +87,15 @@ class Character:
         self.spells_known = []
         self.rituals_known = []
         self.head_hp = 20
+        self.current_head_hp = 20
         self.torso_hp = 50
+        self.current_torso_hp = 50
         self.rarm_hp = 10
+        self.current_rarm_hp = 10
         self.larm_hp = 10
+        self.current_larm_hp = 10
         self.legs_hp = 10
+        self.current_legs_hp = 10
         self.inventory = []
         self.equipped_weapon = None
         self.equipped_armor = None
@@ -208,7 +213,7 @@ class Creature:
         self.inventory = []
         self.equipped_weapon = None
         self.equipped_armor = None
-        self.availible_actions = [bite_attack,claw_attack]
+#        self.availible_actions = [bite_attack,claw_attack]
 
 
 
@@ -254,7 +259,7 @@ items = {
 
 slides = {
     "start": [
-        Slide("0","TWISTED LANDS","start"),
+        Slide("0","TWISTED LANDS","start",is_fight= True),
     ],
     "wild": [
         #Slide("wild1","You're wandering in a dense forest. Birds are chirping.","wild"),
@@ -296,6 +301,9 @@ slides = {
         Slide("Temple","Temple Saklas","sp_ed",background="city"),
         Slide("Hospital","Hospital Iyao","sp_ed",background="city"),
         Slide("Granforja","Gran forja Bapth","sp_ed",background="city")
+        ],
+    "combat": [
+        Slide("combat","","combat")
         ]
 }
 
@@ -344,6 +352,12 @@ button_city = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((550, 550),
                                            text='Visit city',
                                            manager=ui_manager)
 
+# =============================================================================
+# =============================================================================
+# # CHARACTER BUTTONS
+# =============================================================================
+# =============================================================================
+
 button_character = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((710, 10), (50, 30)),
                                                 text='C',
                                                 manager=ui_manager)
@@ -356,9 +370,41 @@ button_quest = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((200, 360)
                                            text='QUEST',
                                            manager=ui_manager)
 
+# =============================================================================
+# =============================================================================
+# # COMBAT BUTTONS
+# =============================================================================
+# =============================================================================
+
+button_Attack = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((350, 500), (130, 40)),
+                                           text='Attack',
+                                           manager=ui_manager)
+button_Skill = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((500, 500), (130, 40)),
+                                           text='Skill',
+                                           manager=ui_manager)
+button_Spell = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((650, 500), (130, 40)),
+                                           text='Spell',
+                                           manager=ui_manager)
+button_Consumables = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((350, 550), (130, 40)),
+                                           text='Consumable',
+                                           manager=ui_manager)
+button_Status = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((500, 550), (130, 40)),
+                                           text='Status',
+                                           manager=ui_manager)
+button_Escape = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((650, 550), (130, 40)),
+                                           text='Escape',
+                                           manager=ui_manager)
+
+
+
+
+
+
+
+
 button_body_mind.hide()
 button_quest.hide()
-
+button_wild.hide()
 # =============================================================================
 # GLOBALS
 # =============================================================================
@@ -378,7 +424,7 @@ button_paths_test = []
 button_paths_ids_test = []
 
 testy = Character("Testy","Test character",1,1,1,1)
-
+creature = Creature("Giant Rat")
 character_window_reference = None
 current_slide_text = current_slide.text
 
@@ -461,16 +507,124 @@ def display_character_info(character):
     for text, box in zip(texts, boxes_config):
         draw_box_with_border(window, text, box)
 
-def display_combat_info():
+
+# =============================================================================
+# def load_and_scale_image(path, size):
+#     image = pygame.image.load(path)
+#     return pygame.transform.scale(image, size)
+# =============================================================================
+
+def combat_background(ui_manager,window):
+    window_width, window_height = 800, 600
+    # Calculate the height for each section
+    top_height = window_height // 10  # Change this to adjust the size of the top section
+    bottom_height = window_height // 4  # Change this to adjust the size of the bottom section
+    middle_height = window_height - (top_height + bottom_height)
+    
+    # Create surfaces for the top and bottom sections
+    top_surface = pygame.Surface((window_width, top_height))
+    bottom_surface = pygame.Surface((window_width, bottom_height))
+    
+    # Fill the top and bottom surfaces with black
+    top_surface.fill((0, 0, 0))
+    bottom_surface.fill((0, 0, 0))
+    
+    # Load and scale the middle section image
+    bg_middle = pygame.transform.scale(loaded_backgrounds["default"], (window_width, middle_height))
+    
+    # Blit the top, middle, and bottom sections onto the window
+    window.blit(top_surface, (0, 0))  # Top section at the top of the window
+    window.blit(bg_middle, (0, top_height))  # Middle section below the top section
+    window.blit(bottom_surface, (0, top_height + middle_height))  # Bottom section below the middle section
+
+def display_combat_character(ui_manager,window,character,position,font_path ="UglyQua.ttf" ):
+    info_texts = [
+        f"Endurance: {character.current_endurance}/{character.endurance}",
+        f"Head: {character.current_head_hp}/{character.head_hp}  Torso: {character.current_torso_hp}/{character.torso_hp}",
+        f"L. Arm: {character.current_larm_hp}/{character.larm_hp}  R. Arm: {character.rarm_hp}/{character.rarm_hp}  Legs: {character.rarm_hp}/{character.legs_hp}",
+        f"Equipped: {character.equipped_weapon.name if character.equipped_weapon else 'None'}",
+        # Add more lines as needed
+    ]
+    font = pygame.font.Font(font_path, 17)
+    # Calculate the position and size for the info box
+    info_box_height = len(info_texts) * (font.get_height() + 5) + 10
+    info_box_width = 300  # Adjust the width as needed
+    info_box_rect = pygame.Rect(position, (info_box_width, info_box_height))
+
+    # Draw the info box background
+    pygame.draw.rect(window, (0, 0, 0), info_box_rect)
+
+    # Set the starting Y position for the first line of text
+    text_pos_y = position[1] + 5
+
+    # Iterate over each info text line
+    for info_text in info_texts:
+        # Determine the color based on the character's status
+        text_color = (128, 128, 128)  # Default color (white)
+        if "Endurance" in info_text:
+            font = pygame.font.Font(font_path, 20)
+            text_surface = font.render(info_text, True, text_color)
+    
+            # Draw the text on the window
+            window.blit(text_surface, (position[0] + 5, text_pos_y))
+    
+            # Move down for the next line of text
+            text_pos_y += font.get_height() + 5
+        else:
+            font = pygame.font.Font(font_path, 17)
+            if "Head" in info_text and character.head_hp < 10:  # Example condition
+                text_color = (255, 0, 0)  # Red color for low health
+    
+            # Render the text
+            text_surface = font.render(info_text, True, text_color)
+    
+            # Draw the text on the window
+            window.blit(text_surface, (position[0] + 5, text_pos_y))
+    
+            # Move down for the next line of text
+            text_pos_y += font.get_height() + 5
+    
+    font = pygame.font.Font(font_path, 30)
+    character_text = f"{character.name}- Level:{character.level} {character.job}"
+    text_surface = font.render(character_text, True, (128, 128, 128))
+    text_width, text_height = text_surface.get_size()
+    box_x, box_y = 400-(text_width/2), 410
+    box_width, box_height = text_width + 2, text_height + 2
+    character_box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
+    pygame.draw.rect(window, (0, 0, 0), character_box_rect)
+    window.blit(text_surface, (box_x, box_y))
+    
+    font = pygame.font.Font(font_path, 30)
+    creature_text = f"{creature.name}"
+    text_surface = font.render(creature_text, True, (128, 128, 128))
+    text_width, text_height = text_surface.get_size()
+    box_x, box_y = 400-(text_width/2), 50
+    box_width, box_height = text_width + 2, text_height + 2
+    creature_box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
+    pygame.draw.rect(window, (0, 0, 0), creature_box_rect)
+    window.blit(text_surface, (box_x, box_y))
+    
+    
+    
+    # Optionally, draw a border around the info box
+    border_color = (0, 0, 0,0)  # White border
+    pygame.draw.rect(window,border_color, info_box_rect, 2)
+
+def combat_screen(ui_manager,window,character,creature,font_path="UglyQua.ttf"):
     button_wild.hide()
     button_city.hide()
+    button_character.hide()
     for btn in button_paths_linked + button_paths_test:
         btn.hide()
-    
-    
+        
+    character_info_position = (20,450)
+    combat_background(ui_manager,window)
+    display_combat_character(ui_manager,window,character,character_info_position)
 
 
-    
+# =============================================================================
+#  TESTS   
+# =============================================================================
 def agility_test(character):
     # Placeholder logic for agility test
     return True#random.choice([True, False])
@@ -692,7 +846,8 @@ while running:
             # =============================================================================
             # DEBUG         
             # =============================================================================              
-           
+    
+            
     if is_debug_mode:
         var_name = debug_input.get_text()
         if var_name and var_name != "Enter var name":  # Check if input is not placeholder or empty
@@ -713,11 +868,14 @@ while running:
     
 
     # If you need to check for a linked slide or a fight
-    if current_slide.background and current_slide.background in loaded_backgrounds:
-        background_image = loaded_backgrounds[current_slide.background]
+    if not current_slide.is_fight :
+        if current_slide.background and current_slide.background in loaded_backgrounds:
+            background_image = loaded_backgrounds[current_slide.background]
+        else:
+            background_image = loaded_backgrounds["default"]
+        window.blit(background_image, (0, 0))
     else:
-        background_image = loaded_backgrounds["default"]
-    window.blit(background_image, (0, 0))
+        combat_screen(ui_manager, window,testy,creature)
     
     # Now, render the slide text on top of the background
     if current_slide.category == "character":
