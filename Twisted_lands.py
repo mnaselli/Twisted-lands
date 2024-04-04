@@ -8,6 +8,7 @@ import pygame
 import pygame_gui
 import random
 import json
+import copy
 pygame.init()
 pygame.font.init()
 # =============================================================================
@@ -23,13 +24,13 @@ pygame.font.init()
 
 
 class Slide:
-    def __init__(self,slide_id, text_template, category,test = None,city_advancement = None,button_text = None, spell = None,item = None, previous_slide = None, success_slide_id = None, fail_slide_id = None, linked_slide_id=None, is_fight=False,background =None):
+    def __init__(self,slide_id, text_template, category,test = None,city_advancement = None,button_text = None, spell = None,item = None, previous_slide = None, success_slide_id = None, fail_slide_id = None, linked_slide_id=None, is_combat=False,background =None):
         self.slide_id = slide_id
         self.text = text_template
         self.text_template = text_template
         self.category = category 
         self.linked_slide_id = linked_slide_id if linked_slide_id is not None else []
-        self.is_fight = is_fight  # Flag to indicate if it's a fight slide
+        self.is_combat = is_combat
         self.background = background
         self.previous_slide = previous_slide
         self.city_advancement = city_advancement if city_advancement is not None else 10 #aca despues lo pongo en random
@@ -96,9 +97,24 @@ class Character:
         self.current_larm_hp = 10
         self.legs_hp = 10
         self.current_legs_hp = 10
+        self.initiative = 40
+        self.initial_initiative = 0
         self.inventory = []
         self.equipped_weapon = None
         self.equipped_armor = None
+        
+    def copy_for_combat(self):
+        """Create a deep copy of the character for combat purposes."""
+        return copy.deepcopy(self)
+    
+    def update_after_combat(self, combat_character):
+        
+        self.current_endurance = combat_character.current_endurance
+        self.current_head_hp = combat_character.current_head_hp
+        self.current_torso_hp = combat_character.current_torso_hp
+        self.current_larm_hp = combat_character.current_larm_hp
+        self.current_rarm_hp = combat_character.current_torso_hp
+        self.current_legs_hp = combat_character.current_legs_hp
         
     
     @property
@@ -183,7 +199,13 @@ class Character:
         # Reverse stat modifiers when an item is unequipped
         for stat, modifier in item.stat_modifiers:
             setattr(self, stat, getattr(self, stat) - modifier)
-
+            
+    def get_attack_damage(self):
+        if self.equipped_weapon is not None:
+            return random.randint(self.equipped_weapon.min_damage, self.equipped_weapon.max_damage) + max(self.strength,self.agility)
+        else:
+            # Return a default damage if no weapon is equipped, or raise an exception
+            return 1 + + max(self.strength,self.agility)  # Replace 'default_damage' with a default value
 
 # =============================================================================
 # =============================================================================
@@ -211,6 +233,8 @@ class Creature:
         self.larm_hp = 10
         self.legs_hp = 10
         self.inventory = []
+        self.initiative = 40
+        self.initial_initiative = 0
         self.equipped_weapon = None
         self.equipped_armor = None
 #        self.availible_actions = [bite_attack,claw_attack]
@@ -224,10 +248,11 @@ class Creature:
 # =============================================================================
 
 class Item:
-    def __init__(self, name, item_type, damage=None, stat_modifiers=None, special_abilities=None):
+    def __init__(self, name, item_type, min_damage=None,max_damage=None, stat_modifiers=None, special_abilities=None):
         self.name = name
-        self.item_type = item_type  # 'armor' or 'weapon'
-        self.damage = damage
+        self.item_type = item_type
+        self.min_damage = min_damage
+        self.max_damage = max_damage
         self.stat_modifiers = stat_modifiers if stat_modifiers else []
         self.special_abilities = special_abilities if special_abilities else []
 
@@ -246,7 +271,7 @@ items = {
         Item("Boots of Swiftness","armor",stat_modifiers=[("agility", 1)],special_abilities=[increase_speed])
     ],
     "weapon": [
-        Item("Shortsword","weapon",damage = 5,stat_modifiers=["strength,2"])     
+        Item("Shortsword","weapon",min_damage = 5,max_damage = 10,stat_modifiers=["strength,2"])     
     ],
     "consumable": [
         Item("potion","consumable",special_abilities=[heal])
@@ -259,7 +284,7 @@ items = {
 
 slides = {
     "start": [
-        Slide("0","TWISTED LANDS","start",is_fight= True),
+        Slide("0","","start",is_combat= True),
     ],
     "wild": [
         #Slide("wild1","You're wandering in a dense forest. Birds are chirping.","wild"),
@@ -444,9 +469,9 @@ def toggle_debug_mode():
     global is_debug_mode
     is_debug_mode = not is_debug_mode
     if is_debug_mode:
-        debug_input.show()  # Show the debug input field
+        debug_input.show()
     else:
-        debug_input.hide()  # Hide the debug input field
+        debug_input.hide()
 
 # =============================================================================
 # FUNCIONES
@@ -483,7 +508,6 @@ def draw_box_with_border(window, text, box_config, font_path="UglyQua.ttf"):
     window.blit(box_surface, position)
 
 def display_character_info(character):
-    # This is a simplified example. Adjust according to your UI design.
     
     button_wild.hide()
     button_city.hide()
@@ -499,7 +523,7 @@ def display_character_info(character):
         boxes_config = json.load(file)["boxes"]
         
     texts= [f"{character.name}  Level: {character.level} {character.job}",
-            f"ATTRIBUTES \n Strenght: {character.strength} \n Agility: {character.agility} \n Lore: {character.lore} \n Faith: {character.faith}",
+            f"ATTRIBUTES \n Strength: {character.strength} \n Agility: {character.agility} \n Lore: {character.lore} \n Faith: {character.faith}",
             f"SECONDARY \n Accuracy: {character.accuracy} \n Dodge: {character._dodge} \n Crit chance: {character.crit_chance} \n Weight: 0 / {character.carry_weight_base} \n Armor  \n Block: {character.block} \n Parry: {character.parry} \n Dodge: {character.armor} \n Spell Skill: {character._spell_rating_base} \n Ritual Skill: {character._ritual_rating_base}" ,
             f"SURVIVAL \n Endurance: {character.current_endurance}/{character.endurance} \n Sustenance: {character.current_sustenance}/{character.sustenance} \n Corruption: ph/ph"
             ]
@@ -513,6 +537,15 @@ def display_character_info(character):
 #     image = pygame.image.load(path)
 #     return pygame.transform.scale(image, size)
 # =============================================================================
+
+def basic_attack(character,creature):
+    damage = character.get_attack_damage()
+    
+    creature.endurance = creature.endurance - damage
+    
+def claw_attack(character,creature):
+    damage = random.randint(4, 8)
+    character.current_endurance = character.current_endurance - damage
 
 def combat_background(ui_manager,window):
     window_width, window_height = 800, 600
@@ -537,6 +570,84 @@ def combat_background(ui_manager,window):
     window.blit(bg_middle, (0, top_height))  # Middle section below the top section
     window.blit(bottom_surface, (0, top_height + middle_height))  # Bottom section below the middle section
 
+
+def wait_for_player_action(ui_manager,window,character,creature):
+    action = None
+
+    # Event loop to wait for player's action
+    while action is None:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                break
+            
+            # You would have defined your combat action buttons earlier and passed them here
+            if event.type == pygame_gui.UI_BUTTON_PRESSED:
+                if event.ui_element == button_Attack:
+                    action = 'attack'
+
+            # Pass the event to the UIManager
+            ui_manager.process_events(event)
+
+        # Update the UI manager and draw the UI
+        ui_manager.update(time_delta)  # time_delta is the time since the last loop
+        ui_manager.draw_ui(window)  # window_surface is your main display surface
+
+        # Update the display
+        pygame.display.update()
+
+        # You may want to limit the frame rate
+        clock.tick(60)
+
+    return action
+
+def process_character_action(character_action,character,creture):
+    if character_action == "attack":
+        basic_attack(character, creature)
+
+def combat_loop(ui_manager,window,character,creature):
+    character_turn = False
+    creature_turn = False
+
+    while character.current_endurance>0 and creature.endurance>0:
+        # Increase both character and creature's initial initiative
+        character.initial_initiative += character.initiative
+        creature.initial_initiative += creature.initiative
+
+        # Check if the character or creature has reached or exceeded 100 initiative
+        if character.initial_initiative >= 100:
+            character_turn = True
+            character.initial_initiative -= 100
+        if creature.initial_initiative >= 100:
+            creature_turn = True
+            creature.initial_initiative -= 100
+
+        # Handle the character's turn
+        if character_turn:
+            character_action = wait_for_player_action(ui_manager,window,character,creature)  # Function to wait for player to press a button
+            process_character_action(character_action, character, creature)
+            character_turn = False  # Reset the flag after the character's turn is processed
+
+        # Handle the creature's turn
+        if creature_turn:
+            claw_attack(character,creature)
+            #creature_action = decide_creature_action(creature)  # AI function to decide the creature's action
+            #process_creature_action(creature_action, character, creature)
+            creature_turn = False  # Reset the flag after the creature's turn is processed
+
+        # Update the UI with the current state
+        display_combat_character(ui_manager,window,character,(20,450))
+
+        # Check for end of combat (e.g., one of the participants' health reaches 0)
+        if character.current_endurance <= 0 or creature.endurance <= 0:
+            break
+
+        # Optionally, wait for a short moment before the next loop iteration
+        pygame.time.delay(100)
+
+    # Determine the outcome of the combat
+    return #determine_combat_outcome(character, creature)
+
 def display_combat_character(ui_manager,window,character,position,font_path ="UglyQua.ttf" ):
     info_texts = [
         f"Endurance: {character.current_endurance}/{character.endurance}",
@@ -547,12 +658,12 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     ]
     font = pygame.font.Font(font_path, 17)
     # Calculate the position and size for the info box
-    info_box_height = len(info_texts) * (font.get_height() + 5) + 10
+    info_box_height = len(info_texts) * (font.get_height() + 5) + 20
     info_box_width = 300  # Adjust the width as needed
     info_box_rect = pygame.Rect(position, (info_box_width, info_box_height))
 
     # Draw the info box background
-    pygame.draw.rect(window, (0, 0, 0), info_box_rect)
+    pygame.draw.rect(window, (0, 0, 0, 0), info_box_rect)
 
     # Set the starting Y position for the first line of text
     text_pos_y = position[1] + 5
@@ -562,7 +673,7 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
         # Determine the color based on the character's status
         text_color = (128, 128, 128)  # Default color (white)
         if "Endurance" in info_text:
-            font = pygame.font.Font(font_path, 20)
+            font = pygame.font.Font(font_path, 30)
             text_surface = font.render(info_text, True, text_color)
     
             # Draw the text on the window
@@ -595,6 +706,16 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     window.blit(text_surface, (box_x, box_y))
     
     font = pygame.font.Font(font_path, 30)
+    creature_text = f"Endurance:{creature.endurance}"
+    text_surface = font.render(creature_text, True, (128, 128, 128))
+    text_width, text_height = text_surface.get_size()
+    box_x, box_y = 10, 10
+    box_width, box_height = text_width + 5, text_height + 2
+    creature_box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
+    pygame.draw.rect(window, (0, 0, 0), creature_box_rect)
+    window.blit(text_surface, (box_x, box_y))
+    
+    font = pygame.font.Font(font_path, 30)
     creature_text = f"{creature.name}"
     text_surface = font.render(creature_text, True, (128, 128, 128))
     text_width, text_height = text_surface.get_size()
@@ -611,11 +732,6 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     pygame.draw.rect(window,border_color, info_box_rect, 2)
 
 def combat_screen(ui_manager,window,character,creature,font_path="UglyQua.ttf"):
-    button_wild.hide()
-    button_city.hide()
-    button_character.hide()
-    for btn in button_paths_linked + button_paths_test:
-        btn.hide()
         
     character_info_position = (20,450)
     combat_background(ui_manager,window)
@@ -626,11 +742,9 @@ def combat_screen(ui_manager,window,character,creature,font_path="UglyQua.ttf"):
 #  TESTS   
 # =============================================================================
 def agility_test(character):
-    # Placeholder logic for agility test
     return True#random.choice([True, False])
 
 def strength_test(character):
-    # Placeholder logic for strength test
     return False#random.choice([True, False])
 
 
@@ -646,7 +760,7 @@ def render_slide(window, text):
     for word in words:
         test_line = f"{line} {word}".strip()  
         # Check if this line's width exceeds a certain limit
-        if font.size(test_line)[0] > 760:  # 760px wide for some margin
+        if font.size(test_line)[0] > 760:
             text_lines.append(line)  # Save the previous line
             line = word  # Start a new line with the current word
         else:
@@ -727,7 +841,7 @@ def update_path_buttons(slide, ui_manager):
             button_text = slide.button_text[index] if index < len(slide.button_text) else "Option"
             # Modified positioning to include a gap between buttons
             btn = pygame_gui.elements.UIButton(
-                relative_rect=pygame.Rect((100 + index * (210 + 10), 500), (200, 50)),  # Added a 10-pixel gap# Adjusted for a 20px gap
+                relative_rect=pygame.Rect((100 + index * (210 + 10), 500), (200, 50)),
                 text=button_text,
                 manager=ui_manager
             )
@@ -771,7 +885,7 @@ while running:
             running = False
     
     
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_F1:  # Toggle debug mode with F1
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F1:
             toggle_debug_mode()
         
         if event.type == pygame_gui.UI_TEXT_ENTRY_FINISHED and event.ui_element == debug_input:
@@ -868,21 +982,24 @@ while running:
     
 
     # If you need to check for a linked slide or a fight
-    if not current_slide.is_fight :
+    if not current_slide.is_combat :
         if current_slide.background and current_slide.background in loaded_backgrounds:
             background_image = loaded_backgrounds[current_slide.background]
         else:
             background_image = loaded_backgrounds["default"]
         window.blit(background_image, (0, 0))
     else:
+        button_wild.hide()
+        button_city.hide()
+        button_character.hide()
+        for btn in button_paths_linked + button_paths_test:
+            btn.hide()
         combat_screen(ui_manager, window,testy,creature)
+        combat_loop(ui_manager, window, testy, creature)
     
-    # Now, render the slide text on top of the background
     if current_slide.category == "character":
-        # Special rendering for the character info slide
         display_character_info(testy)
     else:
-        # Regular slide rendering
         render_slide(window, current_slide_text)
     
     # Process UI events and update the UI elements
