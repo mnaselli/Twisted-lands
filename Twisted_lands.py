@@ -596,7 +596,6 @@ def wait_for_player_action(ui_manager,window,character,creature):
         # Update the display
         pygame.display.update()
 
-        # You may want to limit the frame rate
         clock.tick(60)
 
     return action
@@ -631,11 +630,10 @@ def combat_loop(ui_manager,window,character,creature):
         # Handle the creature's turn
         if creature_turn:
             claw_attack(character,creature)
-            #creature_action = decide_creature_action(creature)  # AI function to decide the creature's action
+            #creature_action = decide_creature_action(creature)  #function to decide the creature's action
             #process_creature_action(creature_action, character, creature)
             creature_turn = False  # Reset the flag after the creature's turn is processed
 
-        # Update the UI with the current state
         display_combat_character(ui_manager,window,character,(20,450))
 
         # Check for end of combat (e.g., one of the participants' health reaches 0)
@@ -645,7 +643,7 @@ def combat_loop(ui_manager,window,character,creature):
         # Optionally, wait for a short moment before the next loop iteration
         pygame.time.delay(100)
 
-    # Determine the outcome of the combat
+    # loot,cambiar slide, rewards, etc
     return #determine_combat_outcome(character, creature)
 
 def display_combat_character(ui_manager,window,character,position,font_path ="UglyQua.ttf" ):
@@ -654,7 +652,6 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
         f"Head: {character.current_head_hp}/{character.head_hp}  Torso: {character.current_torso_hp}/{character.torso_hp}",
         f"L. Arm: {character.current_larm_hp}/{character.larm_hp}  R. Arm: {character.rarm_hp}/{character.rarm_hp}  Legs: {character.rarm_hp}/{character.legs_hp}",
         f"Equipped: {character.equipped_weapon.name if character.equipped_weapon else 'None'}",
-        # Add more lines as needed
     ]
     font = pygame.font.Font(font_path, 17)
     # Calculate the position and size for the info box
@@ -671,7 +668,7 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     # Iterate over each info text line
     for info_text in info_texts:
         # Determine the color based on the character's status
-        text_color = (128, 128, 128)  # Default color (white)
+        text_color = (128, 128, 128)  # Default color grey
         if "Endurance" in info_text:
             font = pygame.font.Font(font_path, 30)
             text_surface = font.render(info_text, True, text_color)
@@ -727,8 +724,7 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     
     
     
-    # Optionally, draw a border around the info box
-    border_color = (0, 0, 0,0)  # White border
+    border_color = (0, 0, 0,0) #no border
     pygame.draw.rect(window,border_color, info_box_rect, 2)
 
 def combat_screen(ui_manager,window,character,creature,font_path="UglyQua.ttf"):
