@@ -738,10 +738,10 @@ def combat_screen(ui_manager,window,character,creature,font_path="UglyQua.ttf"):
 #  TESTS   
 # =============================================================================
 def agility_test(character):
-    return True#random.choice([True, False])
+    return random.choice([True, False])
 
 def strength_test(character):
-    return False#random.choice([True, False])
+    return random.choice([True, False])
 
 
 # =============================================================================
