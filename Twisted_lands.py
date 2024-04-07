@@ -234,7 +234,7 @@ class Creature:
         self.larm_hp = 10
         self.legs_hp = 10
         self.inventory = []
-        self.initiative = 40
+        self.initiative = 20
         self.initial_initiative = 0
         self.equipped_weapon = None
         self.equipped_armor = None
