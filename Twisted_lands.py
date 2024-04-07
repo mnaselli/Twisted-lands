@@ -207,6 +207,7 @@ class Character:
             # Return a default damage if no weapon is equipped, or raise an exception
             return 1 + + max(self.strength,self.agility)  # Replace 'default_damage' with a default value
 
+
 # =============================================================================
 # =============================================================================
 # # Creature
@@ -218,13 +219,13 @@ class Creature:
         self.name = name
         self.endurance = 100
         self.current_endurance = 100
-        self.accuracy = 0.75
-        self._dodge = 0.3
+        self.accuracy = 0.8
+        self._dodge = 0.05
         self.crit_chance = 0.30
         self.armor = 10
         self._spell_rating_base = 1
-        self.block = 0.1
-        self.parry = 0.1
+        self.block = 0
+        self.parry = 0
         self.perks = []
         self.spells_known = []
         self.head_hp = 20
@@ -233,7 +234,7 @@ class Creature:
         self.larm_hp = 10
         self.legs_hp = 10
         self.inventory = []
-        self.initiative = 40
+        self.initiative = 20
         self.initial_initiative = 0
         self.equipped_weapon = None
         self.equipped_armor = None
@@ -261,6 +262,17 @@ def increase_speed(character):
 def heal(character):
     character.health += 10
 
+def create_item(name):
+    # Iterate through each category in the items dictionary
+    for category in items.values():
+        # Look for the item by name
+        for item in category:
+            if item.name == name:
+                # Found the item, create a new instance and return it
+                return Item(item.name, item.item_type, item.min_damage, item.max_damage, item.stat_modifiers, item.special_abilities)
+    # If item not found, return None or raise an error
+    return None
+
 
 # =============================================================================
 # GAME DEF
@@ -271,7 +283,7 @@ items = {
         Item("Boots of Swiftness","armor",stat_modifiers=[("agility", 1)],special_abilities=[increase_speed])
     ],
     "weapon": [
-        Item("Shortsword","weapon",min_damage = 5,max_damage = 10,stat_modifiers=["strength,2"])     
+        Item("Shortsword","weapon",min_damage = 5,max_damage = 10,stat_modifiers=[("strength",2)])     
     ],
     "consumable": [
         Item("potion","consumable",special_abilities=[heal])
@@ -447,8 +459,12 @@ button_paths_linked = []
 button_paths_ids_linked = []
 button_paths_test = []
 button_paths_ids_test = []
+button_paths_combat = []
+button_paths_idscombat = []
 
 testy = Character("Testy","Test character",1,1,1,1)
+shortsword = create_item("Shortsword")
+testy.equip_item(shortsword)
 creature = Creature("Giant Rat")
 character_window_reference = None
 current_slide_text = current_slide.text
@@ -532,20 +548,16 @@ def display_character_info(character):
         draw_box_with_border(window, text, box)
 
 
-# =============================================================================
-# def load_and_scale_image(path, size):
-#     image = pygame.image.load(path)
-#     return pygame.transform.scale(image, size)
-# =============================================================================
-
 def basic_attack(character,creature):
     damage = character.get_attack_damage()
+    return damage
+    #creature.endurance = creature.endurance - damage
     
-    creature.endurance = creature.endurance - damage
     
 def claw_attack(character,creature):
     damage = random.randint(4, 8)
-    character.current_endurance = character.current_endurance - damage
+   # character.current_endurance = character.current_endurance - damage
+    return damage
 
 def combat_background(ui_manager,window):
     window_width, window_height = 800, 600
@@ -600,11 +612,54 @@ def wait_for_player_action(ui_manager,window,character,creature):
 
     return action
 
-def process_character_action(character_action,character,creture):
+def process_character_action(character_action,character,creture,left_info_box,right_info_box):
     if character_action == "attack":
-        basic_attack(character, creature)
+        damage = basic_attack(character, creature)
+        flag = dodge_block_parry(character, creature)
+        if flag == "dodged":
+            damage = 0
+            text = "You swing your weapon but the attack gets dodged and you do no damage"
+        elif flag == "blocked":
+            damage_blocked = 0.5*damage
+            damage = damage*0.5
+            text = f"You swing your weapon but the attack gets blocked you do {damage} ({damage_blocked} gets blocked)"
+        elif flag == "parried":
+            damage_parried = damage*0.25
+            damage = damage*0.75
+            text = f"You swing your weapon but the attack gets parried you do {damage} ({damage_parried} gets parried)" 
+        else:
+            text = f"You swing your weapon dealing {damage} damage"
+        
+        
+        creature.endurance = creature.endurance - damage
+        left_info_box = update_combat_text(left_info_box, text)
+        #window.blit(left_info_box, (0, 60))
+        return left_info_box
 
-def combat_loop(ui_manager,window,character,creature):
+def process_creature_action(creature_action,character,creture,left_info_box,right_info_box):
+    damage = claw_attack(character, creature)
+    flag = dodge_block_parry(character, creature)
+    if flag == "dodged":
+        damage = 0
+        text = "The creature swings its claws but the attack gets dodged and you receive no damage"
+    elif flag == "blocked":
+        damage_blocked = 0.5*damage
+        damage = damage*0.5
+        text = f"The creature swaings its claws but the attack gets blocked you receive {damage} ({damage_blocked} gets blocked)"
+    elif flag == "parried":
+        damage_parried = damage*0.25
+        damage = damage*0.75
+        text = f"The creature swaings its claws but the attack gets parried you receive {damage} ({damage_parried} gets parried)" 
+    else:
+        text = f"The creature swaings its claws dealing {damage} damage"
+        
+        
+    character.current_endurance = character.current_endurance - damage
+    right_info_box = update_combat_text(right_info_box, text)
+    return right_info_box
+        #window.blit(right_info_box, (800*2/3, 60))
+
+def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_box):
     character_turn = False
     creature_turn = False
 
@@ -624,16 +679,17 @@ def combat_loop(ui_manager,window,character,creature):
         # Handle the character's turn
         if character_turn:
             character_action = wait_for_player_action(ui_manager,window,character,creature)  # Function to wait for player to press a button
-            process_character_action(character_action, character, creature)
+            left_info_box = process_character_action(character_action, character, creature,left_info_box,right_info_box)
             character_turn = False  # Reset the flag after the character's turn is processed
 
         # Handle the creature's turn
         if creature_turn:
-            claw_attack(character,creature)
             #creature_action = decide_creature_action(creature)  #function to decide the creature's action
-            #process_creature_action(creature_action, character, creature)
+            right_info_box = process_creature_action(None, character, creature,left_info_box,right_info_box)
             creature_turn = False  # Reset the flag after the creature's turn is processed
-
+        
+        window.blit(left_info_box, (0, 60))
+        window.blit(right_info_box, (800*2/3, 60))
         display_combat_character(ui_manager,window,character,(20,450))
 
         # Check for end of combat (e.g., one of the participants' health reaches 0)
@@ -645,6 +701,19 @@ def combat_loop(ui_manager,window,character,creature):
 
     # loot,cambiar slide, rewards, etc
     return #determine_combat_outcome(character, creature)
+
+def init_combat_ui(window):
+    # Get the size of the window surface
+    # Create and return surfaces for left and right info boxes
+    left_box_surface = pygame.Surface((800 // 3, 390), pygame.SRCALPHA)
+    right_box_surface = pygame.Surface((800 // 3, 390), pygame.SRCALPHA)
+    
+    # Fill surfaces with a translucent color
+    left_box_surface.fill((0, 0, 0, 128))  # semi-transparent black
+    right_box_surface.fill((0, 0, 0, 128))  # semi-transparent black
+    
+    return left_box_surface, right_box_surface
+
 
 def display_combat_character(ui_manager,window,character,position,font_path ="UglyQua.ttf" ):
     info_texts = [
@@ -707,7 +776,7 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     text_surface = font.render(creature_text, True, (128, 128, 128))
     text_width, text_height = text_surface.get_size()
     box_x, box_y = 10, 10
-    box_width, box_height = text_width + 5, text_height + 2
+    box_width, box_height = text_width + 15, text_height + 2
     creature_box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
     pygame.draw.rect(window, (0, 0, 0), creature_box_rect)
     window.blit(text_surface, (box_x, box_y))
@@ -733,7 +802,28 @@ def combat_screen(ui_manager,window,character,creature,font_path="UglyQua.ttf"):
     combat_background(ui_manager,window)
     display_combat_character(ui_manager,window,character,character_info_position)
 
-
+def dodge_block_parry(attacker,defender):
+    flag = None
+    if random.random() > attacker.accuracy - defender._dodge:
+        flag = "dodged"
+    elif random.random() < defender.block:
+        flag = "blocked"
+    elif random.random() < defender.parry:
+        flag = "parried"
+    return flag
+    
+def update_combat_text(surface, text, clear_surface=True):
+    if clear_surface:
+        surface.fill((0, 0, 0, 255))
+        window.blit(surface, (0, 60))
+        # Clear the previous text by filling the surface with the same translucent color
+        new_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        new_surface.fill((0, 0, 0, 128))
+    else:
+        new_surface = surface
+    blit_text(new_surface, text, (10, 10), (255, 255, 255)) 
+    return new_surface
+    
 # =============================================================================
 #  TESTS   
 # =============================================================================
@@ -770,7 +860,22 @@ def render_slide(window, text):
         window.blit(line_surface, (20, y_offset))
         y_offset += font.get_linesize()  # Move down for the next line
         
-        
+def blit_text(surface, text, pos, color):
+    font = pygame.font.Font("UglyQua.ttf", 24)
+    words = text.split(' ')
+    space = font.size(' ')[0]
+    x, y = pos
+    for word in words:
+        word_surface = font.render(word, True, color)
+        word_width, word_height = word_surface.get_size()
+        if x + word_width >= surface.get_width():
+            x = pos[0]  # Reset the x.
+            y += word_height  # Start on new row.
+        surface.blit(word_surface, (x, y))
+        x += word_width + space
+    if x < surface.get_width():
+        x = pos[0]  # Reset the x.
+        y += word_height  # Start on new row.        
 
 def select_random_slide(category):   
     global current_slide
@@ -976,7 +1081,9 @@ while running:
 
 
     
-
+# =============================================================================
+# COMBAT LOOP
+# =============================================================================
     # If you need to check for a linked slide or a fight
     if not current_slide.is_combat :
         if current_slide.background and current_slide.background in loaded_backgrounds:
@@ -989,9 +1096,12 @@ while running:
         button_city.hide()
         button_character.hide()
         for btn in button_paths_linked + button_paths_test:
-            btn.hide()
+            btn.kill()
         combat_screen(ui_manager, window,testy,creature)
-        combat_loop(ui_manager, window, testy, creature)
+        left_info_box, right_info_box = init_combat_ui(window)
+        window.blit(left_info_box, (0, 60))
+        window.blit(right_info_box, (2 * 800 // 3, 60))
+        combat_loop(ui_manager, window, testy, creature,left_info_box,right_info_box)
     
     if current_slide.category == "character":
         display_character_info(testy)
