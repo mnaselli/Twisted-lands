@@ -1,4 +1,20 @@
 {
+    "button": {
+        "normal_bg": "#FFFFFFFF",
+        "hovered_bg": "#FFFFFFFF",
+        "active_bg": "#FFFFFF",
+        "normal_border": "#FFFFFFFF",
+        "hovered_border": "#FFFFFF",
+        "active_border": "#FFFFFF"
+    },
+    "combat_button": {
+        "normal_bg": "#00000000",
+        "hovered_bg": "#00000000",
+        "active_bg": "#00000000",
+        "normal_border": "#FFFFFF",
+        "hovered_border": "#AAAAAA",
+        "active_border": "#FFFFFF"
+    },
     "window": {
         "colours": {
             "dark_bg": "#000000AA"
