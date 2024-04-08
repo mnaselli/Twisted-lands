@@ -101,6 +101,7 @@ class Character:
         self.initial_initiative = 0
         self.inventory = []
         self.equipped_weapon = None
+        self.available_weapons = []
         self.equipped_armor = None
         
     def copy_for_combat(self):
@@ -172,6 +173,7 @@ class Character:
             if self.equipped_weapon:
                 self.unequip_item('weapon')
             self.equipped_weapon = item
+            self.available_weapons.append(item)
         elif item.item_type == 'armor':
             if self.equipped_armor:
                 self.unequip_item('armor')
@@ -238,7 +240,7 @@ class Creature:
         self.initial_initiative = 0
         self.equipped_weapon = None
         self.equipped_armor = None
-#        self.availible_actions = [bite_attack,claw_attack]
+#        self.available_actions = [bite_attack,claw_attack]
 
 
 
@@ -283,7 +285,9 @@ items = {
         Item("Boots of Swiftness","armor",stat_modifiers=[("agility", 1)],special_abilities=[increase_speed])
     ],
     "weapon": [
-        Item("Shortsword","weapon",min_damage = 5,max_damage = 10,stat_modifiers=[("strength",2)])     
+        Item("Shortsword","weapon",min_damage = 5,max_damage = 10,stat_modifiers=[("strength",2)]),     
+        Item("Axe","weapon",min_damage = 5,max_damage = 15,stat_modifiers=[("strength",2)]),
+        Item("Bow","weapon",min_damage = 7,max_damage = 12,stat_modifiers=[("agility",2)])
     ],
     "consumable": [
         Item("potion","consumable",special_abilities=[heal])
@@ -460,11 +464,15 @@ button_paths_ids_linked = []
 button_paths_test = []
 button_paths_ids_test = []
 button_paths_combat = []
-button_paths_idscombat = []
+button_paths_ids_combat = []
 
 testy = Character("Testy","Test character",1,1,1,1)
 shortsword = create_item("Shortsword")
+axe = create_item("Axe")
+bow = create_item("Bow")
 testy.equip_item(shortsword)
+testy.available_weapons.append(axe)
+testy.available_weapons.append(bow)
 creature = Creature("Giant Rat")
 character_window_reference = None
 current_slide_text = current_slide.text
@@ -552,8 +560,67 @@ def basic_attack(character,creature):
     damage = character.get_attack_damage()
     return damage
     #creature.endurance = creature.endurance - damage
+ 
+def basic_attack2(character,creature):
+    weapon_chosen = None
+    while weapon_chosen is None:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                break
     
-    
+def choose_weapon(ui_manager,window,character):
+    global button_paths_combat, button_paths_ids_combat
+    clock = pygame.time.Clock()  # Ensure you have a clock to manage updates
+
+    if button_paths_combat:
+        for btn in button_paths_combat:
+            btn.kill()
+        button_paths_combat.clear()
+        button_paths_ids_combat.clear()
+
+    for index, weapon in enumerate(character.available_weapons):
+        btn = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect((300, 100 + index * 60), (200, 50)),
+            text=weapon.name,
+            manager=ui_manager    
+        )
+        button_paths_combat.append(btn)
+        button_paths_ids_combat.append((weapon.name, index))
+
+    weapon_chosen = None
+    while weapon_chosen is None:
+        time_delta = clock.tick(60)/1000.0
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return None
+            if event.type == pygame_gui.UI_BUTTON_PRESSED:
+                if event.ui_element in button_paths_combat:
+                    index = button_paths_combat.index(event.ui_element)
+                    weapon_chosen = button_paths_ids_combat[index][0]  # Get weapon name
+                    break
+
+            ui_manager.process_events(event)
+        
+        ui_manager.update(time_delta)
+# =============================================================================
+#         window.fill((0, 0, 0))  # Clear screen or draw your background
+# =============================================================================
+        ui_manager.draw_ui(window)
+        pygame.display.update()
+
+    # Clean up buttons after choice
+    for btn in button_paths_combat:
+        btn.kill()
+    button_paths_combat.clear()
+    button_paths_ids_combat.clear()
+
+    return weapon_chosen
+
+
+
+
 def claw_attack(character,creature):
     damage = random.randint(4, 8)
    # character.current_endurance = character.current_endurance - damage
@@ -596,6 +663,7 @@ def wait_for_player_action(ui_manager,window,character,creature):
             # You would have defined your combat action buttons earlier and passed them here
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == button_Attack:
+                    chosen_weapon = choose_weapon(ui_manager,window,character)
                     action = 'attack'
 
             # Pass the event to the UIManager
