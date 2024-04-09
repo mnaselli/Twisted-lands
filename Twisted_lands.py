@@ -202,13 +202,23 @@ class Character:
         for stat, modifier in item.stat_modifiers:
             setattr(self, stat, getattr(self, stat) - modifier)
             
-    def get_attack_damage(self):
-        if self.equipped_weapon is not None:
-            return random.randint(self.equipped_weapon.min_damage, self.equipped_weapon.max_damage) + max(self.strength,self.agility)
+# =============================================================================
+#     def get_attack_damage(self,chosen_weapon):
+#         if self.equipped_weapon is not None:
+#             return random.randint(self.equipped_weapon.min_damage, self.equipped_weapon.max_damage) + max(self.strength,self.agility)
+#         else:
+#             # Return a default damage if no weapon is equipped, or raise an exception
+#             return 1 + + max(self.strength,self.agility)  # Replace 'default_damage' with a default value
+# =============================================================================
+    def get_attack_damage(self, chosen_weapon_name):
+        # Search for the weapon by name in available_weapons
+        weapon = next((item for item in self.available_weapons if item.name == chosen_weapon_name), None)
+        if weapon:
+            # Calculate damage using the found weapon's damage range and character's stats
+            return random.randint(weapon.min_damage, weapon.max_damage) + max(self._strength, self._agility)
         else:
-            # Return a default damage if no weapon is equipped, or raise an exception
-            return 1 + + max(self.strength,self.agility)  # Replace 'default_damage' with a default value
-
+            # Optionally handle the case where no weapon is found
+            return 1 + max(self._strength, self._agility)  # Default damage or consider raising an exception
 
 # =============================================================================
 # =============================================================================
@@ -556,10 +566,11 @@ def display_character_info(character):
         draw_box_with_border(window, text, box)
 
 
-def basic_attack(character,creature):
-    damage = character.get_attack_damage()
-    return damage
-    #creature.endurance = creature.endurance - damage
+def basic_attack(character,creature,chosen_weapon):
+
+     damage = character.get_attack_damage(chosen_weapon)
+     return damage
+
  
 def basic_attack2(character,creature):
     weapon_chosen = None
@@ -568,16 +579,29 @@ def basic_attack2(character,creature):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 break
+
+def clean_combat_buttons():
+    global button_paths_combat, button_paths_ids_combat
+    for btn in button_paths_combat:
+        btn.kill()
+    button_paths_combat.clear()
+    button_paths_ids_combat.clear()
+    bg_middle = pygame.transform.scale(loaded_backgrounds["default"], (800/3, 390))
+    window.blit(bg_middle, (800/3, 60))
     
+
 def choose_weapon(ui_manager,window,character):
     global button_paths_combat, button_paths_ids_combat
     clock = pygame.time.Clock()  # Ensure you have a clock to manage updates
 
     if button_paths_combat:
-        for btn in button_paths_combat:
-            btn.kill()
-        button_paths_combat.clear()
-        button_paths_ids_combat.clear()
+        clean_combat_buttons()
+# =============================================================================
+#         for btn in button_paths_combat:
+#             btn.kill()
+#         button_paths_combat.clear()
+#         button_paths_ids_combat.clear()
+# =============================================================================
 
     for index, weapon in enumerate(character.available_weapons):
         btn = pygame_gui.elements.UIButton(
@@ -598,7 +622,8 @@ def choose_weapon(ui_manager,window,character):
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element in button_paths_combat:
                     index = button_paths_combat.index(event.ui_element)
-                    weapon_chosen = button_paths_ids_combat[index][0]  # Get weapon name
+                    weapon_chosen = button_paths_ids_combat[index][0]
+                    clean_combat_buttons()
                     break
 
             ui_manager.process_events(event)
@@ -611,10 +636,13 @@ def choose_weapon(ui_manager,window,character):
         pygame.display.update()
 
     # Clean up buttons after choice
-    for btn in button_paths_combat:
-        btn.kill()
-    button_paths_combat.clear()
-    button_paths_ids_combat.clear()
+    clean_combat_buttons()
+# =============================================================================
+#     for btn in button_paths_combat:
+#         btn.kill()
+#     button_paths_combat.clear()
+#     button_paths_ids_combat.clear()
+# =============================================================================
 
     return weapon_chosen
 
@@ -678,11 +706,11 @@ def wait_for_player_action(ui_manager,window,character,creature):
 
         clock.tick(60)
 
-    return action
+    return action,chosen_weapon
 
-def process_character_action(character_action,character,creture,left_info_box,right_info_box):
+def process_character_action(character_action,chosen_weapon,character,creture,left_info_box,right_info_box):
     if character_action == "attack":
-        damage = basic_attack(character, creature)
+        damage = basic_attack(character, creature,chosen_weapon)
         flag = dodge_block_parry(character, creature)
         if flag == "dodged":
             damage = 0
@@ -713,13 +741,13 @@ def process_creature_action(creature_action,character,creture,left_info_box,righ
     elif flag == "blocked":
         damage_blocked = 0.5*damage
         damage = damage*0.5
-        text = f"The creature swaings its claws but the attack gets blocked you receive {damage} ({damage_blocked} gets blocked)"
+        text = f"The creature swings its claws but the attack gets blocked you receive {damage} ({damage_blocked} gets blocked)"
     elif flag == "parried":
         damage_parried = damage*0.25
         damage = damage*0.75
-        text = f"The creature swaings its claws but the attack gets parried you receive {damage} ({damage_parried} gets parried)" 
+        text = f"The creature swings its claws but the attack gets parried you receive {damage} ({damage_parried} gets parried)" 
     else:
-        text = f"The creature swaings its claws dealing {damage} damage"
+        text = f"The creature swings its claws dealing {damage} damage"
         
         
     character.current_endurance = character.current_endurance - damage
@@ -746,8 +774,8 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
 
         # Handle the character's turn
         if character_turn:
-            character_action = wait_for_player_action(ui_manager,window,character,creature)  # Function to wait for player to press a button
-            left_info_box = process_character_action(character_action, character, creature,left_info_box,right_info_box)
+            character_action,chosen_weapon = wait_for_player_action(ui_manager,window,character,creature)  # Function to wait for player to press a button
+            left_info_box = process_character_action(character_action,chosen_weapon, character, creature,left_info_box,right_info_box)
             character_turn = False  # Reset the flag after the character's turn is processed
 
         # Handle the creature's turn
