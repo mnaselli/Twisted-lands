@@ -11,6 +11,7 @@ import json
 import copy
 pygame.init()
 pygame.font.init()
+pygame.mixer.init()
 # =============================================================================
 # CLASSES
 # =============================================================================
@@ -295,9 +296,9 @@ items = {
         Item("Boots of Swiftness","armor",stat_modifiers=[("agility", 1)],special_abilities=[increase_speed])
     ],
     "weapon": [
-        Item("Shortsword","weapon",min_damage = 5,max_damage = 10,stat_modifiers=[("strength",2)]),     
-        Item("Axe","weapon",min_damage = 5,max_damage = 15,stat_modifiers=[("strength",2)]),
-        Item("Bow","weapon",min_damage = 7,max_damage = 12,stat_modifiers=[("agility",2)])
+        Item("Shortsword","weapon",min_damage = 1,max_damage = 1,stat_modifiers=[("strength",2)]),     
+        Item("Axe","weapon",min_damage = 3,max_damage = 3,stat_modifiers=[("strength",2)]),
+        Item("Bow","weapon",min_damage = 5,max_damage = 5,stat_modifiers=[("agility",2)])
     ],
     "consumable": [
         Item("potion","consumable",special_abilities=[heal])
@@ -460,7 +461,16 @@ button_wild.hide()
 # GLOBALS
 # =============================================================================
 
+sound_effects = {
+    'AxeHit1': pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
+    'BlockMelee1': pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
+    'MissMelee1': pygame.mixer.Sound('sounds/Combat/MissMelee1.mp3')
+}    
 
+for sound in sound_effects.values():
+    sound.set_volume(0.5)  # Adjust volume level as needed
+
+   
 current_category = "start"
 
 
@@ -715,16 +725,19 @@ def process_character_action(character_action,chosen_weapon,character,creture,le
         if flag == "dodged":
             damage = 0
             text = "You swing your weapon but the attack gets dodged and you do no damage"
+            sound_effects['MissMelee1'].play()
         elif flag == "blocked":
             damage_blocked = 0.5*damage
             damage = damage*0.5
             text = f"You swing your weapon but the attack gets blocked you do {damage} ({damage_blocked} gets blocked)"
+            sound_effects['BlockMelee1'].play()
         elif flag == "parried":
             damage_parried = damage*0.25
             damage = damage*0.75
             text = f"You swing your weapon but the attack gets parried you do {damage} ({damage_parried} gets parried)" 
         else:
             text = f"You swing your weapon dealing {damage} damage"
+            sound_effects['AxeHit1'].play()
         
         
         creature.endurance = creature.endurance - damage
