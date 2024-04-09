@@ -2,7 +2,7 @@
 """
 Created on Mon Mar 25 23:38:49 2024
 
-@author: Matts
+@author: Matts 
 """
 import pygame
 import pygame_gui
@@ -37,7 +37,7 @@ class Slide:
         self.city_advancement = city_advancement if city_advancement is not None else 10 #aca despues lo pongo en random
         self.use_spell = spell
         self.use_item = item
-        self.button_text = button_text if button_text is not None else ["move forward"]
+        self.button_text = button_text if button_text is not None else ["Move forward"]
         self.test = test
         self.success_slide_id = success_slide_id
         self.fail_slide_id = fail_slide_id
@@ -77,8 +77,8 @@ class Character:
         self.sustenance = 100
         self.current_sustenance = 100
         self.accuracy = 0.75
-        self._dodge = 0.3
-        self.crit_chance = 0.30
+        self._dodge = 0.4
+        self.crit_chance = 0.15
         self.carry_weight_base = 50
         self.armor = 10
         self._spell_rating_base = 1
@@ -296,9 +296,10 @@ items = {
         Item("Boots of Swiftness","armor",stat_modifiers=[("agility", 1)],special_abilities=[increase_speed])
     ],
     "weapon": [
-        Item("Shortsword","weapon",min_damage = 1,max_damage = 1,stat_modifiers=[("strength",2)]),     
-        Item("Axe","weapon",min_damage = 3,max_damage = 3,stat_modifiers=[("strength",2)]),
-        Item("Bow","weapon",min_damage = 5,max_damage = 5,stat_modifiers=[("agility",2)])
+        Item("shortsword","weapon",min_damage = 5,max_damage = 10,stat_modifiers=[("strength",2)]),     
+        Item("Axe","weapon",min_damage = 5,max_damage = 14,stat_modifiers=[("strength",2)]),
+        Item("Bow","weapon",min_damage = 5,max_damage = 5,stat_modifiers=[("agility",2)]),
+        Item("Quarterstaff","weapon",min_damage = 3,max_damage = 8,stat_modifiers=[("strength",2)]) 
     ],
     "consumable": [
         Item("potion","consumable",special_abilities=[heal])
@@ -463,8 +464,17 @@ button_wild.hide()
 
 sound_effects = {
     'AxeHit1': pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
+    'BluntHit1': pygame.mixer.Sound('sounds/Combat/BluntHit1.mp3'),
+    'StaffHit1': pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
+    'StaffHit2': pygame.mixer.Sound('sounds/Combat/StaffHit2.mp3'),
+    'UnarmedHit1': pygame.mixer.Sound('sounds/Combat/UnarmedHit1.mp3'),
     'BlockMelee1': pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
-    'MissMelee1': pygame.mixer.Sound('sounds/Combat/MissMelee1.mp3')
+    'BlockMelee2': pygame.mixer.Sound('sounds/Combat/BlockMelee2.mp3'),
+    'BlockRaged1': pygame.mixer.Sound('sounds/Combat/BlockRanged1.mp3'),
+    'MissMelee1': pygame.mixer.Sound('sounds/Combat/MissMelee1.mp3'),
+    'MissRanged1': pygame.mixer.Sound('sounds/Combat/MissRanged1.mp3'),
+    'ParryMelee1': pygame.mixer.Sound('sounds/Combat/ParryMelee1.mp3'),
+    
 }    
 
 for sound in sound_effects.values():
@@ -486,13 +496,14 @@ button_paths_ids_test = []
 button_paths_combat = []
 button_paths_ids_combat = []
 
-testy = Character("Testy","Test character",1,1,1,1)
-shortsword = create_item("Shortsword")
+testy = Character("Testycle","Test character",1,1,1,1)
+shortsword = create_item("shortsword")
 axe = create_item("Axe")
 bow = create_item("Bow")
+quarterstaff = create_item("Quarterstaff")
 testy.equip_item(shortsword)
 testy.available_weapons.append(axe)
-testy.available_weapons.append(bow)
+testy.available_weapons.append(quarterstaff)
 creature = Creature("Giant Rat")
 character_window_reference = None
 current_slide_text = current_slide.text
@@ -724,20 +735,23 @@ def process_character_action(character_action,chosen_weapon,character,creture,le
         flag = dodge_block_parry(character, creature)
         if flag == "dodged":
             damage = 0
-            text = "You swing your weapon but the attack gets dodged and you do no damage"
+            text = "Your attack misses the Creature, dealing no damage!"
             sound_effects['MissMelee1'].play()
         elif flag == "blocked":
             damage_blocked = 0.5*damage
             damage = damage*0.5
-            text = f"You swing your weapon but the attack gets blocked you do {damage} ({damage_blocked} gets blocked)"
+            text = f"Your attack was blocked, dealing {damage}! ({damage_blocked} damage lost)"
             sound_effects['BlockMelee1'].play()
         elif flag == "parried":
             damage_parried = damage*0.25
             damage = damage*0.75
-            text = f"You swing your weapon but the attack gets parried you do {damage} ({damage_parried} gets parried)" 
+            text = f"Your attack was parried, dealing {damage}! ({damage_parried} damage lost)" 
         else:
-            text = f"You swing your weapon dealing {damage} damage"
-            sound_effects['AxeHit1'].play()
+            text = f"Your {chosen_weapon} hits the Creature for {damage} damage"
+            if chosen_weapon == "Axe":
+                sound_effects['AxeHit1'].play()
+            elif chosen_weapon == "Quarterstaff":
+                sound_effects['StaffHit2'].play()
         
         
         creature.endurance = creature.endurance - damage
@@ -750,17 +764,17 @@ def process_creature_action(creature_action,character,creture,left_info_box,righ
     flag = dodge_block_parry(character, creature)
     if flag == "dodged":
         damage = 0
-        text = "The creature swings its claws but the attack gets dodged and you receive no damage"
+        text = "The Creature lounges, but you manage to dodge!"
     elif flag == "blocked":
         damage_blocked = 0.5*damage
         damage = damage*0.5
-        text = f"The creature swings its claws but the attack gets blocked you receive {damage} ({damage_blocked} gets blocked)"
+        text = f"You block the Creature attack, receiveing {damage} ({damage_blocked} damage mitigated)"
     elif flag == "parried":
         damage_parried = damage*0.25
         damage = damage*0.75
-        text = f"The creature swings its claws but the attack gets parried you receive {damage} ({damage_parried} gets parried)" 
+        text = f"You parry the Creature attack, receiveing {damage} ({damage_parried} gets mitigated)" 
     else:
-        text = f"The creature swings its claws dealing {damage} damage"
+        text = f"The Creature strikes you for {damage} damage"
         
         
     character.current_endurance = character.current_endurance - damage
