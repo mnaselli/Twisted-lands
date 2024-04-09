@@ -371,8 +371,6 @@ text_options = {
     "[/smellqual]": ["faint", "strong", "weak", "barely perceptible", "pungent", "invasive", "notorious"],
 }
 
-
-
 backgrounds_paths = {
     "default": "background/obsidian.png",
     "forest": "background/woodbackground.png",
@@ -463,6 +461,12 @@ button_wild.hide()
 # =============================================================================
 
 sound_effects = {
+    
+    "soundcategory1":[pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
+                      pygame.mixer.Sound('sounds/Combat/BluntHit1.mp3'),
+                      pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
+                      pygame.mixer.Sound('sounds/Combat/StaffHit2.mp3')
+                     ],
     'AxeHit1': pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
     'BluntHit1': pygame.mixer.Sound('sounds/Combat/BluntHit1.mp3'),
     'StaffHit1': pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
@@ -475,7 +479,8 @@ sound_effects = {
     'MissRanged1': pygame.mixer.Sound('sounds/Combat/MissRanged1.mp3'),
     'ParryMelee1': pygame.mixer.Sound('sounds/Combat/ParryMelee1.mp3'),
     
-}    
+}  
+ 
 
 for sound in sound_effects.values():
     sound.set_volume(0.5)  # Adjust volume level as needed
@@ -531,6 +536,15 @@ def toggle_debug_mode():
 # =============================================================================
 # FUNCIONES
 # =============================================================================
+
+
+def play_random_sound(category):
+    if category in sound_effects:
+        sound_to_play = random.choice(sound_effects[category])
+        sound_to_play.play()
+    else:
+        print(f"No such category: {category}")
+
 
 def generate_dynamic_text(template_text, options_dict):
     for placeholder, choices in options_dict.items():
