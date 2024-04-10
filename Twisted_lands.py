@@ -53,6 +53,53 @@ def getSlidebyID(slide_id):
             if slide.slide_id == slide_id:  
                 return slide  
 
+# =============================================================================
+# =============================================================================
+# # Body parts
+# =============================================================================
+# =============================================================================
+
+class BodyPart:
+    def __init__(self, name, max_hp, armor, dodge_offset=0, is_vital=False):
+        self.name = name
+        self.max_hp = max_hp
+        self.current_hp = max_hp
+        self.armor = armor
+        self.dodge_offset = dodge_offset
+        self.conditions = set()
+        self.is_vital = is_vital
+        self.owner = None
+
+    def take_damage(self, damage):
+        effective_damage = max(0, damage - self.armor)
+        self.current_hp -= effective_damage
+        self.current_hp = max(0, self.current_hp)  # Prevent HP from going negative
+        self.update_conditions()
+        if self.is_important and self.current_hp == 0:
+            return "combat_end"
+        return "continue"
+    
+    def update_conditions(self):
+        if self.current_hp == 0:
+            self.conditions.add("destroyed")
+        elif self.current_hp <= self.max_hp / 2:
+            self.conditions.add("damaged")
+        else:
+            self.conditions.discard("damaged")
+
+    def heal(self, amount):
+        if self.current_hp > 0:  # Cannot heal a destroyed body part
+            self.current_hp += amount
+            self.current_hp = min(self.current_hp, self.max_hp)
+            self.update_conditions()
+
+    @property
+    def dodge(self):
+        if self.owner:
+            return self.owner.dodge + self.dodge_offset
+        return self.dodge_offset
+
+
 
 
 # =============================================================================
@@ -80,7 +127,9 @@ class Character:
         self._dodge = 0.4
         self.crit_chance = 0.15
         self.carry_weight_base = 50
-        self.armor = 10
+# =============================================================================
+#         self.armor = 10
+# =============================================================================
         self._spell_rating_base = 1
         self._ritual_rating_base = 1
         self.block = 0.1
@@ -88,22 +137,55 @@ class Character:
         self.perks = []
         self.spells_known = []
         self.rituals_known = []
-        self.head_hp = 20
-        self.current_head_hp = 20
-        self.torso_hp = 50
-        self.current_torso_hp = 50
-        self.rarm_hp = 10
-        self.current_rarm_hp = 10
-        self.larm_hp = 10
-        self.current_larm_hp = 10
-        self.legs_hp = 10
-        self.current_legs_hp = 10
+        self.body_parts = {
+            'Torso': BodyPart('Torso', 100, 5, is_vital=True),
+            'Left Arm': BodyPart('Left Arm', 50,3,dodge_offset=0.05),
+            'Right Arm': BodyPart('Right Arm', 50, 3,dodge_offset=0.05),
+            'Head': BodyPart('Head', 30, 4, is_vital=True,dodge_offset=0.1),
+            'Legs': BodyPart('Legs', 80, 4,dodge_offset=0.05)
+        }
+        # Assign owner to body parts
+        for part in self.body_parts.values():
+            part.owner = self
+# =============================================================================
+#         self.head_hp = 20
+#         self.current_head_hp = 20
+#         self.torso_hp = 50
+#         self.current_torso_hp = 50
+#         self.rarm_hp = 10
+#         self.current_rarm_hp = 10
+#         self.larm_hp = 10
+#         self.current_larm_hp = 10
+#         self.legs_hp = 10
+#         self.current_legs_hp = 10
+# =============================================================================
         self.initiative = 40
         self.initial_initiative = 0
         self.inventory = []
         self.equipped_weapon = None
         self.available_weapons = []
         self.equipped_armor = None
+        
+        
+        @property
+        def dodge(self):
+            return self._dodge
+        
+        @dodge.setter
+        def dodge(self, value):
+            self._dodge = value
+
+
+        def take_damage(self, body_part_name, damage):
+            if body_part_name in self.body_parts:
+                critical_destroyed = self.body_parts[body_part_name].take_damage(damage)
+                if critical_destroyed:
+                    print(f"Critical body part {body_part_name} destroyed! Critical situation!")
+                self.body_parts[body_part_name].update_condition()
+            else:
+                print(f"No such body part: {body_part_name}")
+
+        
         
     def copy_for_combat(self):
         """Create a deep copy of the character for combat purposes."""
@@ -203,14 +285,7 @@ class Character:
         for stat, modifier in item.stat_modifiers:
             setattr(self, stat, getattr(self, stat) - modifier)
             
-# =============================================================================
-#     def get_attack_damage(self,chosen_weapon):
-#         if self.equipped_weapon is not None:
-#             return random.randint(self.equipped_weapon.min_damage, self.equipped_weapon.max_damage) + max(self.strength,self.agility)
-#         else:
-#             # Return a default damage if no weapon is equipped, or raise an exception
-#             return 1 + + max(self.strength,self.agility)  # Replace 'default_damage' with a default value
-# =============================================================================
+
     def get_attack_damage(self, chosen_weapon_name):
         # Search for the weapon by name in available_weapons
         weapon = next((item for item in self.available_weapons if item.name == chosen_weapon_name), None)
@@ -220,6 +295,15 @@ class Character:
         else:
             # Optionally handle the case where no weapon is found
             return 1 + max(self._strength, self._agility)  # Default damage or consider raising an exception
+        
+        
+        
+        
+        
+        
+
+
+
 
 # =============================================================================
 # =============================================================================
@@ -482,8 +566,16 @@ sound_effects = {
 }  
  
 
-for sound in sound_effects.values():
-    sound.set_volume(0.5)  # Adjust volume level as needed
+def set_all_volumes(sound_effects, volume):
+    for sound in sound_effects.values():
+        if isinstance(sound, list):  # Check if the entry is a list
+            for s in sound:
+                s.set_volume(volume)
+        elif isinstance(sound, pygame.mixer.Sound):  # Check if the entry is a Sound object
+            sound.set_volume(volume)
+
+# Set the volume for all sounds to 50%
+set_all_volumes(sound_effects, 0.5)
 
    
 current_category = "start"
@@ -631,13 +723,6 @@ def choose_weapon(ui_manager,window,character):
 
     if button_paths_combat:
         clean_combat_buttons()
-# =============================================================================
-#         for btn in button_paths_combat:
-#             btn.kill()
-#         button_paths_combat.clear()
-#         button_paths_ids_combat.clear()
-# =============================================================================
-
     for index, weapon in enumerate(character.available_weapons):
         btn = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect((300, 100 + index * 60), (200, 50)),
@@ -664,21 +749,11 @@ def choose_weapon(ui_manager,window,character):
             ui_manager.process_events(event)
         
         ui_manager.update(time_delta)
-# =============================================================================
-#         window.fill((0, 0, 0))  # Clear screen or draw your background
-# =============================================================================
         ui_manager.draw_ui(window)
         pygame.display.update()
 
     # Clean up buttons after choice
     clean_combat_buttons()
-# =============================================================================
-#     for btn in button_paths_combat:
-#         btn.kill()
-#     button_paths_combat.clear()
-#     button_paths_ids_combat.clear()
-# =============================================================================
-
     return weapon_chosen
 
 
@@ -718,6 +793,7 @@ def wait_for_player_action(ui_manager,window,character,creature):
 
     # Event loop to wait for player's action
     while action is None:
+        time_delta = clock.tick(60)/1000.0
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -743,25 +819,26 @@ def wait_for_player_action(ui_manager,window,character,creature):
 
     return action,chosen_weapon
 
-def process_character_action(character_action,chosen_weapon,character,creture,left_info_box,right_info_box):
+def process_character_action(character_action,chosen_weapon,character,creture,left_info_box,right_info_box,character_turn_number):
     if character_action == "attack":
         damage = basic_attack(character, creature,chosen_weapon)
         flag = dodge_block_parry(character, creature)
+        text = f"Turn {character_turn_number}                "
         if flag == "dodged":
             damage = 0
-            text = "Your attack misses the Creature, dealing no damage!"
+            text += "\n Your attack misses the Creature, dealing no damage!"
             sound_effects['MissMelee1'].play()
         elif flag == "blocked":
             damage_blocked = 0.5*damage
             damage = damage*0.5
-            text = f"Your attack was blocked, dealing {damage}! ({damage_blocked} damage lost)"
+            text += f"\n Your attack was blocked, dealing {damage}! ({damage_blocked} damage lost)"
             sound_effects['BlockMelee1'].play()
         elif flag == "parried":
             damage_parried = damage*0.25
             damage = damage*0.75
-            text = f"Your attack was parried, dealing {damage}! ({damage_parried} damage lost)" 
+            text += f"\n Your attack was parried, dealing {damage}! ({damage_parried} damage lost)" 
         else:
-            text = f"Your {chosen_weapon} hits the Creature for {damage} damage"
+            text += f"\n Your {chosen_weapon} hits the Creature for {damage} damage"
             if chosen_weapon == "Axe":
                 sound_effects['AxeHit1'].play()
             elif chosen_weapon == "Quarterstaff":
@@ -770,35 +847,36 @@ def process_character_action(character_action,chosen_weapon,character,creture,le
         
         creature.endurance = creature.endurance - damage
         left_info_box = update_combat_text(left_info_box, text)
-        #window.blit(left_info_box, (0, 60))
         return left_info_box
 
-def process_creature_action(creature_action,character,creture,left_info_box,right_info_box):
+def process_creature_action(creature_action,character,creture,left_info_box,right_info_box,creature_turn_number):
     damage = claw_attack(character, creature)
     flag = dodge_block_parry(character, creature)
+    text = f"Turn {creature_turn_number}                "
     if flag == "dodged":
         damage = 0
-        text = "The Creature lounges, but you manage to dodge!"
+        text += "\n The Creature lounges, but you manage to dodge!"
     elif flag == "blocked":
         damage_blocked = 0.5*damage
         damage = damage*0.5
-        text = f"You block the Creature attack, receiveing {damage} ({damage_blocked} damage mitigated)"
+        text += f"\n You block the Creature attack, receiveing {damage} ({damage_blocked} damage mitigated)"
     elif flag == "parried":
         damage_parried = damage*0.25
         damage = damage*0.75
-        text = f"You parry the Creature attack, receiveing {damage} ({damage_parried} gets mitigated)" 
+        text += f"\n You parry the Creature attack, receiveing {damage} ({damage_parried} gets mitigated)" 
     else:
-        text = f"The Creature strikes you for {damage} damage"
+        text += f"\n The Creature strikes you for {damage} damage"
         
         
     character.current_endurance = character.current_endurance - damage
     right_info_box = update_combat_text(right_info_box, text)
     return right_info_box
-        #window.blit(right_info_box, (800*2/3, 60))
 
 def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_box):
     character_turn = False
     creature_turn = False
+    character_turn_number = 0
+    creature_turn_number = 0
 
     while character.current_endurance>0 and creature.endurance>0:
         # Increase both character and creature's initial initiative
@@ -815,14 +893,16 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
 
         # Handle the character's turn
         if character_turn:
+            character_turn_number += 1
             character_action,chosen_weapon = wait_for_player_action(ui_manager,window,character,creature)  # Function to wait for player to press a button
-            left_info_box = process_character_action(character_action,chosen_weapon, character, creature,left_info_box,right_info_box)
+            left_info_box = process_character_action(character_action,chosen_weapon, character, creature,left_info_box,right_info_box,character_turn_number)
             character_turn = False  # Reset the flag after the character's turn is processed
 
         # Handle the creature's turn
         if creature_turn:
             #creature_action = decide_creature_action(creature)  #function to decide the creature's action
-            right_info_box = process_creature_action(None, character, creature,left_info_box,right_info_box)
+            creature_turn_number += 1
+            right_info_box = process_creature_action(None, character, creature,left_info_box,right_info_box,creature_turn_number)
             creature_turn = False  # Reset the flag after the creature's turn is processed
         
         window.blit(left_info_box, (0, 60))
@@ -837,7 +917,7 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
         pygame.time.delay(100)
 
     # loot,cambiar slide, rewards, etc
-    return #determine_combat_outcome(character, creature)
+    return
 
 def init_combat_ui(window):
     # Get the size of the window surface
@@ -847,7 +927,7 @@ def init_combat_ui(window):
     
     # Fill surfaces with a translucent color
     left_box_surface.fill((0, 0, 0, 128))  # semi-transparent black
-    right_box_surface.fill((0, 0, 0, 128))  # semi-transparent black
+    right_box_surface.fill((0, 0, 0, 128))
     
     return left_box_surface, right_box_surface
 
@@ -855,9 +935,8 @@ def init_combat_ui(window):
 def display_combat_character(ui_manager,window,character,position,font_path ="UglyQua.ttf" ):
     info_texts = [
         f"Endurance: {character.current_endurance}/{character.endurance}",
-        f"Head: {character.current_head_hp}/{character.head_hp}  Torso: {character.current_torso_hp}/{character.torso_hp}",
-        f"L. Arm: {character.current_larm_hp}/{character.larm_hp}  R. Arm: {character.rarm_hp}/{character.rarm_hp}  Legs: {character.rarm_hp}/{character.legs_hp}",
-        f"Equipped: {character.equipped_weapon.name if character.equipped_weapon else 'None'}",
+        f"Head: {character.body_parts['Head'].current_hp}/{character.body_parts['Head'].max_hp}  Torso: {character.body_parts['Torso'].current_hp}/{character.body_parts['Torso'].max_hp}",
+        f"L. Arm: {character.body_parts['Left Arm'].current_hp}/{character.body_parts['Left Arm'].max_hp}  R. Arm: {character.body_parts['Right Arm'].current_hp}/{character.body_parts['Right Arm'].max_hp}  Legs: {character.body_parts['Legs'].current_hp}/{character.body_parts['Legs'].max_hp}"
     ]
     font = pygame.font.Font(font_path, 17)
     # Calculate the position and size for the info box
@@ -886,7 +965,7 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
             text_pos_y += font.get_height() + 5
         else:
             font = pygame.font.Font(font_path, 17)
-            if "Head" in info_text and character.head_hp < 10:  # Example condition
+            if "Head" in info_text and character.body_parts['Head'].current_hp < 10:  # Example condition
                 text_color = (255, 0, 0)  # Red color for low health
     
             # Render the text
@@ -1118,7 +1197,6 @@ while running:
     
     for event in pygame.event.get():
         
-        #ui_manager.process_events(event)
         if event.type == pygame.QUIT:
             running = False
     
@@ -1134,11 +1212,7 @@ while running:
                     print(f"{var_name}: {var_value}")  # Print or display the value
                 except Exception as e:
                     print(f"Error: {str(e)}")
-            
-        
-        
-        # Process UI events in the main event loop
-        #ui_manager.process_events(event)
+
             # =============================================================================
              # terminal slide loop             
             # =============================================================================
