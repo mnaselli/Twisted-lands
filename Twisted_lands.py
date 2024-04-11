@@ -70,6 +70,17 @@ class BodyPart:
         self.is_vital = is_vital
         self.owner = None
 
+        @property
+        def armor(self):
+                return self.armor
+    
+    @property
+    def dodge(self):
+        if self.owner:
+            return self.owner.dodge + self.dodge_offset
+        return self.dodge_offset
+    
+
     def take_damage(self, damage):
         effective_damage = max(0, damage - self.armor)
         self.current_hp -= effective_damage
@@ -93,11 +104,7 @@ class BodyPart:
             self.current_hp = min(self.current_hp, self.max_hp)
             self.update_conditions()
 
-    @property
-    def dodge(self):
-        if self.owner:
-            return self.owner.dodge + self.dodge_offset
-        return self.dodge_offset
+
 
 
 
@@ -127,9 +134,7 @@ class Character:
         self._dodge = 0.4
         self.crit_chance = 0.15
         self.carry_weight_base = 50
-# =============================================================================
-#         self.armor = 10
-# =============================================================================
+        self.armor = 10
         self._spell_rating_base = 1
         self._ritual_rating_base = 1
         self.block = 0.1
@@ -147,18 +152,6 @@ class Character:
         # Assign owner to body parts
         for part in self.body_parts.values():
             part.owner = self
-# =============================================================================
-#         self.head_hp = 20
-#         self.current_head_hp = 20
-#         self.torso_hp = 50
-#         self.current_torso_hp = 50
-#         self.rarm_hp = 10
-#         self.current_rarm_hp = 10
-#         self.larm_hp = 10
-#         self.current_larm_hp = 10
-#         self.legs_hp = 10
-#         self.current_legs_hp = 10
-# =============================================================================
         self.initiative = 40
         self.initial_initiative = 0
         self.inventory = []
@@ -166,6 +159,10 @@ class Character:
         self.available_weapons = []
         self.equipped_armor = None
         
+
+        @property
+        def armor(self):
+            return self.armor
         
         @property
         def dodge(self):
@@ -297,7 +294,12 @@ class Character:
             return 1 + max(self._strength, self._agility)  # Default damage or consider raising an exception
         
         
-        
+    def check_vital_parts(self):
+        """Check if any vital body part has 0 HP, indicating a critical condition."""
+        for part in self.body_parts.values():
+            if part.is_vital and part.current_hp <= 0:
+                return True  # Return True if any vital part is destroyed
+        return False  # Return False if all vital parts are still intact    
         
         
         
@@ -325,20 +327,31 @@ class Creature:
         self.parry = 0
         self.perks = []
         self.spells_known = []
-        self.head_hp = 20
-        self.torso_hp = 50
-        self.rarm_hp = 10
-        self.larm_hp = 10
-        self.legs_hp = 10
         self.inventory = []
         self.initiative = 20
         self.initial_initiative = 0
-        self.equipped_weapon = None
-        self.equipped_armor = None
+        self.body_parts = {
+            'Torso': BodyPart('Torso', 100, 5, is_vital=True),
+            'Left Arm': BodyPart('Left Arm', 50,3,dodge_offset=0.05),
+            'Right Arm': BodyPart('Right Arm', 50, 3,dodge_offset=0.05),
+            'Head': BodyPart('Head', 30, 4, is_vital=True,dodge_offset=0.1),
+            'Legs': BodyPart('Legs', 80, 4,dodge_offset=0.05),
+            "Tail": BodyPart('Tail', 10, 4,dodge_offset=0.05)
+        }
+        for part in self.body_parts.values():
+            part.owner = self
 #        self.available_actions = [bite_attack,claw_attack]
 
-
-
+    @property
+    def dodge(self):
+        return self._dodge
+    
+    def check_vital_parts(self):
+        """Check if any vital body part has 0 HP, indicating a critical condition."""
+        for part in self.body_parts.values():
+            if part.is_vital and part.current_hp <= 0:
+                return True  # Return True if any vital part is destroyed
+        return False  # Return False if all vital parts are still intact
 # =============================================================================
 # =============================================================================
 # # ITEMS
@@ -558,7 +571,7 @@ sound_effects = {
     'UnarmedHit1': pygame.mixer.Sound('sounds/Combat/UnarmedHit1.mp3'),
     'BlockMelee1': pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
     'BlockMelee2': pygame.mixer.Sound('sounds/Combat/BlockMelee2.mp3'),
-    'BlockRaged1': pygame.mixer.Sound('sounds/Combat/BlockRanged1.mp3'),
+    'BlockRaged1': pygame.mixer.Sound('sounds/Combat/HitRanged1.mp3'),
     'MissMelee1': pygame.mixer.Sound('sounds/Combat/MissMelee1.mp3'),
     'MissRanged1': pygame.mixer.Sound('sounds/Combat/MissRanged1.mp3'),
     'ParryMelee1': pygame.mixer.Sound('sounds/Combat/ParryMelee1.mp3'),
@@ -740,11 +753,11 @@ def choose_weapon(ui_manager,window,character):
                 pygame.quit()
                 return None
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
-                if event.ui_element in button_paths_combat:
-                    index = button_paths_combat.index(event.ui_element)
-                    weapon_chosen = button_paths_ids_combat[index][0]
-                    clean_combat_buttons()
-                    break
+                for i, button in enumerate(button_paths_combat):
+                    if event.ui_element == button:
+                        weapon_chosen,index = button_paths_ids_combat[i]  # Retrieve the BodyPart instance
+                        clean_combat_buttons()
+                        break
 
             ui_manager.process_events(event)
         
@@ -757,7 +770,51 @@ def choose_weapon(ui_manager,window,character):
     return weapon_chosen
 
 
+def body_part_targeting(ui_manager,window,target):
+    global button_paths_combat, button_paths_ids_combat
+    clock = pygame.time.Clock()
+    if button_paths_combat:
+        clean_combat_buttons()
+    
+    for index, (name, bodypart) in enumerate(target.body_parts.items()):
+        if bodypart.current_hp > 0:
+            btn = pygame_gui.elements.UIButton(
+                relative_rect=pygame.Rect((300, 100 + index * 60), (200, 50)),
+                text=name,  # Use the key or bodypart.name depending on your setup
+                manager=ui_manager    
+        )
+        button_paths_combat.append(btn)
+        button_paths_ids_combat.append(bodypart)  # Store the actual BodyPart instance
+    
+    bodypart_chosen = None
+    while bodypart_chosen is None:
+        time_delta = clock.tick(60)/1000.0
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return None
+            if event.type == pygame_gui.UI_BUTTON_PRESSED:
+                for i, button in enumerate(button_paths_combat):
+                    if event.ui_element == button:
+                        bodypart_chosen = button_paths_ids_combat[i]  # Retrieve the BodyPart instance
+                        clean_combat_buttons()
+                        break
 
+            ui_manager.process_events(event)
+        
+        ui_manager.update(time_delta)
+        ui_manager.draw_ui(window)
+        pygame.display.update()
+
+    # Clean up buttons after choice
+    clean_combat_buttons()
+    return bodypart_chosen
+   
+    
+        
+        
+        
+        
 
 def claw_attack(character,creature):
     damage = random.randint(4, 8)
@@ -790,7 +847,7 @@ def combat_background(ui_manager,window):
 
 def wait_for_player_action(ui_manager,window,character,creature):
     action = None
-
+    chosen_weapon = None
     # Event loop to wait for player's action
     while action is None:
         time_delta = clock.tick(60)/1000.0
@@ -803,6 +860,7 @@ def wait_for_player_action(ui_manager,window,character,creature):
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == button_Attack:
                     chosen_weapon = choose_weapon(ui_manager,window,character)
+                    
                     action = 'attack'
 
             # Pass the event to the UIManager
@@ -819,10 +877,12 @@ def wait_for_player_action(ui_manager,window,character,creature):
 
     return action,chosen_weapon
 
-def process_character_action(character_action,chosen_weapon,character,creture,left_info_box,right_info_box,character_turn_number):
+def process_character_action(ui_manager,window,character_action,chosen_weapon,character,creture,left_info_box,right_info_box,character_turn_number):
     if character_action == "attack":
+        
         damage = basic_attack(character, creature,chosen_weapon)
-        flag = dodge_block_parry(character, creature)
+        bodypart = body_part_targeting(ui_manager, window, creature)
+        flag = dodge_block_parry(character, bodypart)
         text = f"Turn {character_turn_number}                "
         if flag == "dodged":
             damage = 0
@@ -831,21 +891,24 @@ def process_character_action(character_action,chosen_weapon,character,creture,le
         elif flag == "blocked":
             damage_blocked = 0.5*damage
             damage = damage*0.5
-            text += f"\n Your attack was blocked, dealing {damage}! ({damage_blocked} damage lost)"
+            damage = damage - bodypart.armor
+            text += f"\n Your attack was blocked, dealing {damage}! ({damage_blocked} damage lost)({bodypart.armor} reduced by armor)"
             sound_effects['BlockMelee1'].play()
         elif flag == "parried":
             damage_parried = damage*0.25
             damage = damage*0.75
-            text += f"\n Your attack was parried, dealing {damage}! ({damage_parried} damage lost)" 
+            damage = damage - bodypart.armor
+            text += f"\n Your attack was parried, dealing {damage}! ({damage_parried} damage lost)({bodypart.armor} reduced by armor)" 
         else:
-            text += f"\n Your {chosen_weapon} hits the Creature for {damage} damage"
+            damage = damage - bodypart.armor
+            text += f"\n Your {chosen_weapon} hits the Creature for {damage} damage ({bodypart.armor} reduced by armor)"
             if chosen_weapon == "Axe":
                 sound_effects['AxeHit1'].play()
             elif chosen_weapon == "Quarterstaff":
                 sound_effects['StaffHit2'].play()
         
-        
         creature.endurance = creature.endurance - damage
+        bodypart.current_hp = bodypart.current_hp - damage
         left_info_box = update_combat_text(left_info_box, text)
         return left_info_box
 
@@ -895,7 +958,7 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
         if character_turn:
             character_turn_number += 1
             character_action,chosen_weapon = wait_for_player_action(ui_manager,window,character,creature)  # Function to wait for player to press a button
-            left_info_box = process_character_action(character_action,chosen_weapon, character, creature,left_info_box,right_info_box,character_turn_number)
+            left_info_box = process_character_action(ui_manager,window,character_action,chosen_weapon, character, creature,left_info_box,right_info_box,character_turn_number)
             character_turn = False  # Reset the flag after the character's turn is processed
 
         # Handle the creature's turn
@@ -910,7 +973,7 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
         display_combat_character(ui_manager,window,character,(20,450))
 
         # Check for end of combat (e.g., one of the participants' health reaches 0)
-        if character.current_endurance <= 0 or creature.endurance <= 0:
+        if character.current_endurance <= 0 or creature.check_vital_parts() or character.check_vital_parts() or creature.endurance <= 0:
             break
 
         # Optionally, wait for a short moment before the next loop iteration
@@ -1020,12 +1083,20 @@ def combat_screen(ui_manager,window,character,creature,font_path="UglyQua.ttf"):
 
 def dodge_block_parry(attacker,defender):
     flag = None
-    if random.random() > attacker.accuracy - defender._dodge:
+    if random.random() > attacker.accuracy - defender.dodge:
         flag = "dodged"
-    elif random.random() < defender.block:
-        flag = "blocked"
-    elif random.random() < defender.parry:
-        flag = "parried"
+    else:
+        if isinstance(defender, Character):
+            if random.random() < defender.block:
+                flag = "blocked"
+            elif random.random() < defender.parry:
+                flag = "parried"
+        elif isinstance(defender,BodyPart):
+            if random.random() < defender.owner.block:
+                flag = "blocked"
+            elif random.random() < defender.owner.parry:
+                flag = "parried"            
+        
     return flag
     
 def update_combat_text(surface, text, clear_surface=True):
