@@ -105,9 +105,35 @@ class BodyPart:
             self.update_conditions()
 
 
+# =============================================================================
+# =============================================================================
+# # Spells
+# =============================================================================
+# =============================================================================
 
+class Spell:
+    def __init__(self, name, effects, uses_remaining, cooldown):
+        self.name = name
+        self.effects = effects  # This is a list of functions
+        self.uses_remaining = uses_remaining 
+        self.max_uses = uses_remaining  # to reset uses after resting
+        self.cooldown = cooldown
+        self.cooldown_timer = 0  # Tracks cooldown status
 
-
+    def cast(self, *args, **kwargs):
+        if self.uses_remaining > 0 and self.cooldown_timer == 0:
+            for effect in self.effects:
+                effect(*args, **kwargs)  # Execute each effect function
+            self.uses_per_rest -= 1
+            self.cooldown_timer = self.cooldown  # Reset cooldown timer
+        else:
+            print(f"Cannot cast {self.name}. Cooldown remaining: {self.cooldown_timer} turns, Uses left: {self.uses_per_rest}")
+            
+            
+            
+            
+            
+            
 
 # =============================================================================
 # =============================================================================
@@ -577,12 +603,6 @@ sound_effects = {
     "soundcategorystaff":[pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
                       pygame.mixer.Sound('sounds/Combat/StaffHit2.mp3')
                      ],
-    "soundcategoryblunt":[pygame.mixer.Sound('sounds/Combat/BluntHit1.mp3'),
-                      pygame.mixer.Sound('sounds/Combat/BluntHit2.mp3')
-                     ],
-    "soundcategoryblock":[pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
-                      pygame.mixer.Sound('sounds/Combat/BlockMelee2.mp3')
-                     ],
     'AxeHit1': pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
     'AxeHit2': pygame.mixer.Sound('sounds/Combat/AxeHit2.mp3'),
     'BladeHit1': pygame.mixer.Sound('sounds/Combat/BladeHit1.mp3'),
@@ -594,6 +614,8 @@ sound_effects = {
     'StaffHit1': pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
     'StaffHit2': pygame.mixer.Sound('sounds/Combat/StaffHit2.mp3'),
     'UnarmedHit1': pygame.mixer.Sound('sounds/Combat/UnarmedHit1.mp3'),
+    'BlockMelee1': pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
+    'BlockMelee2': pygame.mixer.Sound('sounds/Combat/BlockMelee2.mp3'),
     'RangedHit1': pygame.mixer.Sound('sounds/Combat/RangedHit1.mp3'),
     'MissMelee1': pygame.mixer.Sound('sounds/Combat/MissMelee1.mp3'),
     'MissRanged1': pygame.mixer.Sound('sounds/Combat/MissRanged1.mp3'),
@@ -916,7 +938,7 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon,ch
             damage = damage*0.5
             damage = damage - bodypart.armor
             text += f"\n Your attack at {bodypart.name} was blocked, dealing {damage}! ({damage_blocked} damage lost)({bodypart.armor} reduced by armor)"
-            play_random_sound("soundcategoryaxe")
+            sound_effects['BlockMelee1'].play()
         elif flag == "parried":
             damage_parried = damage*0.25
             damage = damage*0.75
@@ -925,10 +947,10 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon,ch
         else:
             damage = damage - bodypart.armor
             text += f"\n Your {chosen_weapon} hits the {creature.name}'s {bodypart.name} for {damage} damage ({bodypart.armor} reduced by armor)"
-            if chosen_weapon == "Axe":
-                play_random_sound("soundcategoryaxe")
-            elif chosen_weapon == "Quarterstaff":
-                play_random_sound("soundcategorystaff")
+           # if chosen_weapon == "Axe":
+            #    sound_effects["soundcategoryaxe"].play()
+           # elif chosen_weapon == "Quarterstaff":
+            #    sound_effects["soundcategorystaff"].play()
         
         creature.endurance = creature.endurance - damage
         bodypart.current_hp = bodypart.current_hp - damage
