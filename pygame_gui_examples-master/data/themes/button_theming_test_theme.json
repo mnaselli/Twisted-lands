@@ -330,7 +330,8 @@
     {
         "colours":
         {
-            "normal_bg": "#AA303050"
+            "normal_bg": "#00000000",
+	    "normal_border": "#00000000,#FF0000AA,10"
         },
         "misc":
         {
