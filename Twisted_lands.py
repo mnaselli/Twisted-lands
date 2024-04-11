@@ -886,22 +886,22 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon,ch
         text = f"Turn {character_turn_number}                "
         if flag == "dodged":
             damage = 0
-            text += "\n Your attack misses the Creature, dealing no damage!"
+            text += f"\n Your attack at {bodypart.name} misses the {creature.name}, dealing no damage!"
             sound_effects['MissMelee1'].play()
         elif flag == "blocked":
             damage_blocked = 0.5*damage
             damage = damage*0.5
             damage = damage - bodypart.armor
-            text += f"\n Your attack was blocked, dealing {damage}! ({damage_blocked} damage lost)({bodypart.armor} reduced by armor)"
+            text += f"\n Your attack at {bodypart.name} was blocked, dealing {damage}! ({damage_blocked} damage lost)({bodypart.armor} reduced by armor)"
             sound_effects['BlockMelee1'].play()
         elif flag == "parried":
             damage_parried = damage*0.25
             damage = damage*0.75
             damage = damage - bodypart.armor
-            text += f"\n Your attack was parried, dealing {damage}! ({damage_parried} damage lost)({bodypart.armor} reduced by armor)" 
+            text += f"\n Your attack at {bodypart.name} was parried, dealing {damage}! ({damage_parried} damage lost)({bodypart.armor} reduced by armor)" 
         else:
             damage = damage - bodypart.armor
-            text += f"\n Your {chosen_weapon} hits the Creature for {damage} damage ({bodypart.armor} reduced by armor)"
+            text += f"\n Your {chosen_weapon} hits the {creature.name}'s {bodypart.name} for {damage} damage ({bodypart.armor} reduced by armor)"
             if chosen_weapon == "Axe":
                 sound_effects['AxeHit1'].play()
             elif chosen_weapon == "Quarterstaff":
@@ -941,7 +941,7 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
     character_turn_number = 0
     creature_turn_number = 0
 
-    while character.current_endurance>0 and creature.endurance>0:
+    while character.current_endurance>0 and creature.endurance>0 and not creature.check_vital_parts() and not character.check_vital_parts():
         # Increase both character and creature's initial initiative
         character.initial_initiative += character.initiative
         creature.initial_initiative += creature.initiative
