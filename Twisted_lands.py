@@ -131,10 +131,10 @@ class Character:
         self.sustenance = 100
         self.current_sustenance = 100
         self.accuracy = 0.75
-        self._dodge = 0.4
+        self._dodge = 0.05
         self.crit_chance = 0.15
         self.carry_weight_base = 50
-        self.armor = 10
+        self.armor = 1
         self._spell_rating_base = 1
         self._ritual_rating_base = 1
         self.block = 0.1
@@ -233,7 +233,7 @@ class Character:
     
     @property
     def dodge(self):
-        return self._dodge + 0.1 * self.agility
+        return self._dodge + 0.01 * self.agility
 
     @property
     def carry_weight(self):
@@ -241,11 +241,11 @@ class Character:
 
     @property
     def spell_rating(self):
-        return self._spell_rating_base + 0.5 * self.lore
+        return self._spell_rating_base + 1 * self.lore
 
     @property
     def ritual_rating(self):
-        return self._ritual_rating_base + 0.5 * self.faith
+        return self._ritual_rating_base + 1 * self.faith
 
     def equip_item(self, item):
         # Check if an item of the same type is already equipped and unequip it first
@@ -316,12 +316,12 @@ class Character:
 class Creature:
     def __init__(self,name):
         self.name = name
-        self.endurance = 100
-        self.current_endurance = 100
-        self.accuracy = 0.8
+        self.endurance = 35
+        self.current_endurance = 35
+        self.accuracy = 0.75
         self._dodge = 0.05
         self.crit_chance = 0.30
-        self.armor = 10
+        self.armor = 4
         self._spell_rating_base = 1
         self.block = 0
         self.parry = 0
@@ -331,12 +331,12 @@ class Creature:
         self.initiative = 20
         self.initial_initiative = 0
         self.body_parts = {
-            'Torso': BodyPart('Torso', 100, 5, is_vital=True),
-            'Left Arm': BodyPart('Left Arm', 50,3,dodge_offset=0.05),
-            'Right Arm': BodyPart('Right Arm', 50, 3,dodge_offset=0.05),
+            'Torso': BodyPart('Torso', 35, 5, is_vital=True),
+            'Left Arm': BodyPart('Left Arm', 15,3,dodge_offset=0.05),
+            'Right Arm': BodyPart('Right Arm', 15, 3,dodge_offset=0.05),
             'Head': BodyPart('Head', 30, 4, is_vital=True,dodge_offset=0.1),
-            'Legs': BodyPart('Legs', 80, 4,dodge_offset=0.05),
-            "Tail": BodyPart('Tail', 10, 4,dodge_offset=0.05)
+            'Legs': BodyPart('Legs', 10, 4,dodge_offset=0.05),
+            "Tail": BodyPart('Tail', 20, 4,dodge_offset=0.05)
         }
         for part in self.body_parts.values():
             part.owner = self
@@ -440,17 +440,29 @@ slides = {
     "tavern": [
         Slide("TheTavernavcle","Taverna Saklas","tavern",background="city"),
         Slide("TheLongRest","Taverna Iyao","tavern",background="city"),
-        Slide("Champion’sFeast","Taverna Bapth","tavern",background="city")
+        Slide("Champion’sFeast","Taverna Bapth","tavern",background="city"),
+        Slide("GuidingStar","Taverna Savaz","tavern",background="city"),
+        Slide("TheEnchantedFountain","Taverna Phaos","tavern",background="city"),
+        Slide("LapOfLuxury","Taverna Jaros","tavern",background="city"),
+        Slide("TheFellSpot","Taverna Dargab","tavern",background="city")
     ],
     "shop": [
         Slide("Divineprovidence","shop Saklas","shop",background="city"),
         Slide("ScalpelSteel","shop Iyao","shop",background="city"),
-        Slide("Hero’sArsenal","shop Bapth","shop",background="city")
+        Slide("Hero’sArsenal","shop Bapth","shop",background="city"),
+        Slide("AscendedTreasures","shop Savaz","shop",background="city"),
+        Slide("Wizard'sVault","shop Phaos","shop",background="city"),
+        Slide("GildedGuild","shop Jaros","shop",background="city"),
+        Slide("CuriousCollections","shop Dargab","shop",background="city")
         ],
     "sp_ed": [
         Slide("Temple","Temple Saklas","sp_ed",background="city"),
         Slide("Hospital","Hospital Iyao","sp_ed",background="city"),
-        Slide("Granforja","Gran forja Bapth","sp_ed",background="city")
+        Slide("GreatForge","Forge Bapth","sp_ed",background="city"),
+        Slide("Observatory","Observatory Savaz","sp_ed",background="city"),
+        Slide("MageTower","Mage Tower Phaos","sp_ed",background="city"),
+        Slide("Bank","Bank Jaros","sp_ed",background="city"),
+        Slide("ShadowCircle","Shadow Circle Dargab","sp_ed",background="city")
         ],
     "combat": [
         Slide("combat","","combat")
@@ -559,22 +571,29 @@ button_wild.hide()
 
 sound_effects = {
     
-    "soundcategory1":[pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
-                      pygame.mixer.Sound('sounds/Combat/BluntHit1.mp3'),
-                      pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
+    "soundcategoryaxe":[pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
+                      pygame.mixer.Sound('sounds/Combat/AxeHit2.mp3')
+                     ],
+    "soundcategorystaff":[pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
                       pygame.mixer.Sound('sounds/Combat/StaffHit2.mp3')
                      ],
     'AxeHit1': pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
+    'AxeHit2': pygame.mixer.Sound('sounds/Combat/AxeHit2.mp3'),
+    'BladeHit1': pygame.mixer.Sound('sounds/Combat/BladeHit1.mp3'),
+    'BlockMelee1': pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
+    'BlockMelee2': pygame.mixer.Sound('sounds/Combat/BlockMelee2.mp3'),
     'BluntHit1': pygame.mixer.Sound('sounds/Combat/BluntHit1.mp3'),
+    'BluntHit2': pygame.mixer.Sound('sounds/Combat/BluntHit2.mp3'),
+    'ThrustHit1': pygame.mixer.Sound('sounds/Combat/ThrustHit1.mp3'),
     'StaffHit1': pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
     'StaffHit2': pygame.mixer.Sound('sounds/Combat/StaffHit2.mp3'),
     'UnarmedHit1': pygame.mixer.Sound('sounds/Combat/UnarmedHit1.mp3'),
     'BlockMelee1': pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
     'BlockMelee2': pygame.mixer.Sound('sounds/Combat/BlockMelee2.mp3'),
-    'BlockRaged1': pygame.mixer.Sound('sounds/Combat/HitRanged1.mp3'),
+    'RangedHit1': pygame.mixer.Sound('sounds/Combat/RangedHit1.mp3'),
     'MissMelee1': pygame.mixer.Sound('sounds/Combat/MissMelee1.mp3'),
     'MissRanged1': pygame.mixer.Sound('sounds/Combat/MissRanged1.mp3'),
-    'ParryMelee1': pygame.mixer.Sound('sounds/Combat/ParryMelee1.mp3'),
+    'ParryMelee1': pygame.mixer.Sound('sounds/Combat/ParryMelee1.mp3')
     
 }  
  
@@ -902,10 +921,10 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon,ch
         else:
             damage = damage - bodypart.armor
             text += f"\n Your {chosen_weapon} hits the {creature.name}'s {bodypart.name} for {damage} damage ({bodypart.armor} reduced by armor)"
-            if chosen_weapon == "Axe":
-                sound_effects['AxeHit1'].play()
-            elif chosen_weapon == "Quarterstaff":
-                sound_effects['StaffHit2'].play()
+           # if chosen_weapon == "Axe":
+            #    sound_effects["soundcategoryaxe"].play()
+           # elif chosen_weapon == "Quarterstaff":
+            #    sound_effects["soundcategorystaff"].play()
         
         creature.endurance = creature.endurance - damage
         bodypart.current_hp = bodypart.current_hp - damage
