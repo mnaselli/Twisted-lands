@@ -753,9 +753,11 @@ def spell_fireball(target,character,spell_level,multiplier = 1):
     match spell_level:
         case 1:
             damage = random.randint(4, 6)
+            print(target.owner.current_endurance)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
             text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            print(target.owner.current_endurance)
         case 2:
             damage = random.randint(6, 8)
             target.current_hp -= damage
