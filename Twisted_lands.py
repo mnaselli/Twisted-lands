@@ -381,7 +381,12 @@ class Character:
             if spell.name != chosen_spell:
                 spell.reduce_cooldown
 
-
+    def has_spells_available(self):
+        # Check if any spells are available to cast
+        for spell in self.available_spells:
+            if spell.cooldown_timer == 0 and spell.uses_remaining > 0:
+                return True
+        return False
 
 # =============================================================================
 # =============================================================================
@@ -753,11 +758,9 @@ def spell_fireball(target,character,spell_level,multiplier = 1):
     match spell_level:
         case 1:
             damage = random.randint(4, 6)
-            print(target.owner.current_endurance)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
             text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
-            print(target.owner.current_endurance)
         case 2:
             damage = random.randint(6, 8)
             target.current_hp -= damage
@@ -1134,9 +1137,9 @@ def wait_for_player_action(ui_manager,window,character,creature):
                     action = 'attack'
                 
                 if event.ui_element == button_Spell:
-                    chosen_weapon_spell = choose_spell(ui_manager, window, character)
-                    action = "spell"
-
+                    if character.has_spells_available():    
+                        action = "spell"
+                        chosen_weapon_spell = choose_spell(ui_manager, window, character)
             # Pass the event to the UIManager
             ui_manager.process_events(event)
 
@@ -1186,7 +1189,7 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
                 elif chosen_weapon_spell == "Quarterstaff":
                     play_random_sound("soundcategorystaff")
             
-            creature.endurance = creature.endurance - damage
+            creature.current_endurance -= damage
             bodypart.current_hp = bodypart.current_hp - damage
             left_info_box = update_combat_text(left_info_box, text)
             character.reduce_all_cds()
@@ -1198,7 +1201,6 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
             else:
                 target = creature
             spell_text = chosen_spell.cast(character,creature,target)
-            print(spell_text)
             text = text + spell_text
             left_info_box = update_combat_text(left_info_box, text)  
             character.reduce_allbutchosen_cds(chosen_weapon_spell)
@@ -1344,7 +1346,7 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     window.blit(text_surface, (box_x, box_y))
     
     font = pygame.font.Font(font_path, 30)
-    creature_text = f"Endurance:{creature.endurance}"
+    creature_text = f"Endurance:{creature.current_endurance}"
     text_surface = font.render(creature_text, True, (128, 128, 128))
     text_width, text_height = text_surface.get_size()
     box_x, box_y = 10, 10
