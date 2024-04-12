@@ -576,6 +576,37 @@ backgrounds_paths = {
     "city": "background/stonebackground.png",
 }
 
+sound_effects = {
+    
+    "soundcategoryaxe":[pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
+                      pygame.mixer.Sound('sounds/Combat/AxeHit2.mp3')
+                     ],
+    "soundcategorystaff":[pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
+                      pygame.mixer.Sound('sounds/Combat/StaffHit2.mp3')
+                     ],
+    "soundcategoryblunt":[pygame.mixer.Sound('sounds/Combat/BluntHit1.mp3'),
+                      pygame.mixer.Sound('sounds/Combat/BluntHit2.mp3')
+                     ],
+    "soundcategoryblock":[pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
+                      pygame.mixer.Sound('sounds/Combat/BlockMelee2.mp3')
+                     ],
+    'AxeHit1': pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
+    'AxeHit2': pygame.mixer.Sound('sounds/Combat/AxeHit2.mp3'),
+    'BladeHit1': pygame.mixer.Sound('sounds/Combat/BladeHit1.mp3'),
+    'BlockMelee1': pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
+    'BlockMelee2': pygame.mixer.Sound('sounds/Combat/BlockMelee2.mp3'),
+    'BluntHit1': pygame.mixer.Sound('sounds/Combat/BluntHit1.mp3'),
+    'BluntHit2': pygame.mixer.Sound('sounds/Combat/BluntHit2.mp3'),
+    'ThrustHit1': pygame.mixer.Sound('sounds/Combat/ThrustHit1.mp3'),
+    'StaffHit1': pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
+    'StaffHit2': pygame.mixer.Sound('sounds/Combat/StaffHit2.mp3'),
+    'UnarmedHit1': pygame.mixer.Sound('sounds/Combat/UnarmedHit1.mp3'),
+    'RangedHit1': pygame.mixer.Sound('sounds/Combat/RangedHit1.mp3'),
+    'MissMelee1': pygame.mixer.Sound('sounds/Combat/MissMelee1.mp3'),
+    'MissRanged1': pygame.mixer.Sound('sounds/Combat/MissRanged1.mp3'),
+    'ParryMelee1': pygame.mixer.Sound('sounds/Combat/ParryMelee1.mp3')
+    
+}  
 # =============================================================================
 # CONFIG
 # =============================================================================
@@ -659,37 +690,7 @@ button_wild.hide()
 # GLOBALS
 # =============================================================================
 
-sound_effects = {
-    
-    "soundcategoryaxe":[pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
-                      pygame.mixer.Sound('sounds/Combat/AxeHit2.mp3')
-                     ],
-    "soundcategorystaff":[pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
-                      pygame.mixer.Sound('sounds/Combat/StaffHit2.mp3')
-                     ],
-    "soundcategoryblunt":[pygame.mixer.Sound('sounds/Combat/BluntHit1.mp3'),
-                      pygame.mixer.Sound('sounds/Combat/BluntHit2.mp3')
-                     ],
-    "soundcategoryblock":[pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
-                      pygame.mixer.Sound('sounds/Combat/BlockMelee2.mp3')
-                     ],
-    'AxeHit1': pygame.mixer.Sound('sounds/Combat/AxeHit1.mp3'),
-    'AxeHit2': pygame.mixer.Sound('sounds/Combat/AxeHit2.mp3'),
-    'BladeHit1': pygame.mixer.Sound('sounds/Combat/BladeHit1.mp3'),
-    'BlockMelee1': pygame.mixer.Sound('sounds/Combat/BlockMelee1.mp3'),
-    'BlockMelee2': pygame.mixer.Sound('sounds/Combat/BlockMelee2.mp3'),
-    'BluntHit1': pygame.mixer.Sound('sounds/Combat/BluntHit1.mp3'),
-    'BluntHit2': pygame.mixer.Sound('sounds/Combat/BluntHit2.mp3'),
-    'ThrustHit1': pygame.mixer.Sound('sounds/Combat/ThrustHit1.mp3'),
-    'StaffHit1': pygame.mixer.Sound('sounds/Combat/StaffHit1.mp3'),
-    'StaffHit2': pygame.mixer.Sound('sounds/Combat/StaffHit2.mp3'),
-    'UnarmedHit1': pygame.mixer.Sound('sounds/Combat/UnarmedHit1.mp3'),
-    'RangedHit1': pygame.mixer.Sound('sounds/Combat/RangedHit1.mp3'),
-    'MissMelee1': pygame.mixer.Sound('sounds/Combat/MissMelee1.mp3'),
-    'MissRanged1': pygame.mixer.Sound('sounds/Combat/MissRanged1.mp3'),
-    'ParryMelee1': pygame.mixer.Sound('sounds/Combat/ParryMelee1.mp3')
-    
-}  
+
  
 
 def set_all_volumes(sound_effects, volume):
