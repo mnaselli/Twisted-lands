@@ -805,17 +805,17 @@ def creature_tail_attack(target,creature,min_damage = 5,max_damage = 10, multipl
     text = ""
     if flag == "dodged":
         damage = 0
-        text += "\n The {creature.name} attacks your {target.name} with its tail, but you manage to dodge!"
+        text += f"	The {creature.name} attacks your {target.name} with its tail, but you manage to dodge!"
     elif flag == "blocked":
         damage_blocked = 0.5*damage
         damage = damage*0.5
-        text += f"\n You block the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)"
+        text += f"	You block the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)"
     elif flag == "parried":
         damage_parried = damage*0.25
         damage = damage*0.75
-        text += f"\n You parry the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)" 
+        text += f"	You parry the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)" 
     else:
-        text += f"\n The {creature.name} strikes your {target.name} with its tail for {damage} damage"
+        text += f"	The {creature.name} strikes your {target.name} with its tail for {damage} damage"
         
         
     target.current_hp -= damage
@@ -828,17 +828,17 @@ def creature_claw_attack(target,creature,min_damage = 2,max_damage = 5, multipli
     text = ""
     if flag == "dodged":
         damage = 0
-        text += "\n The {creature.name} attacks your {target.name} with its claw, but you manage to dodge!"
+        text += f"	The {creature.name} attacks your {target.name} with its claw, but you manage to dodge!"
     elif flag == "blocked":
         damage_blocked = 0.5*damage
         damage = damage*0.5
-        text += f"\n You block the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)"
+        text += f"	You block the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)"
     elif flag == "parried":
         damage_parried = damage*0.25
         damage = damage*0.75
-        text += f"\n You parry the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)" 
+        text += f"	You parry the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)" 
     else:
-        text += f"\n The {creature.name} strikes your {target.name} with its claw for {damage} damage"
+        text += f"	The {creature.name} strikes your {target.name} with its claw for {damage} damage"
         
         
     target.current_hp = target.current_hp - damage
@@ -850,7 +850,7 @@ def creature_swipe(target,creature,min_damage = 2,max_damage = 5, multiplier = 1
     damage = damage = random.randint(min_damage, max_damage)
     #flag = dodge_block_parry(target, creature)
     text = ""
-    text += f"\n The {creature.name} swipes at you with its claws for {damage} damage"
+    text += f"	The {creature.name} swipes at you with its claws for {damage} damage"
     for body_part in target.get_all_body_parts():
         body_part.current_hp -= damage
     target.current_endurance -= damage
@@ -870,40 +870,40 @@ def spell_fireball(target,character,spell_level,multiplier = 1):
             damage = random.randint(4, 6)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
         case 2:
             damage = random.randint(6, 8)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
         case 3:
             damage = random.randint(12, 16)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
             aoe_damage = math.ceil(damage/10)
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.3:
                 
                 for body_part in target.owner.get_other_body_parts(target.name):
                     body_part.current_hp -= aoe_damage
-                text = text + f"and {aoe_damage} damage to all other body parts"
+                text = text + f"	and {aoe_damage} damage to all other body parts"
         case 4:
             damage = random.randint(16, 20)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
             aoe_damage = math.ceil(damage/10)
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.4:
                 
                 for body_part in target.owner.get_other_body_parts(target.name):
                     body_part.current_hp -= aoe_damage 
-                text = text + f"and {aoe_damage} damage to all other body parts"
+                text = text + f"	and {aoe_damage} damage to all other body parts"
         case 5:
             damage = random.randint(22, 30)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
             aoe_damage = math.ceil(damage/10)
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.5:
                 
                 for body_part in target.owner.get_other_body_parts(target.name):
@@ -913,7 +913,7 @@ def spell_fireball(target,character,spell_level,multiplier = 1):
             damage = 1
             target.current_hp -= damage
             target.owner.current_endurance -= damage
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
     
     return text
 
@@ -925,7 +925,7 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
         case 1:
             damage = random.randint(3, 4)
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.current_endurance -= damage
@@ -933,14 +933,14 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
         case 2:
             damage = random.randint(4, 5)
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.current_endurance -= damage
         case 3:
             damage = random.randint(6, 8)
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             
@@ -951,7 +951,7 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
         case 4:
             damage = random.randint(8, 10)
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.current_endurance -= damage
@@ -961,7 +961,7 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
         case 5:
             damage = random.randint(11, 15)
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.current_endurance -= damage
@@ -971,7 +971,7 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
         case 0:
             damage = 1
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.owner.current_endurance -= damage

@@ -52,3 +52,10 @@ Parrying Dagger | 30% to parry
 Swordbreaker | 10% to parry, 25% chance to disarm on parry
 Censer | +33% healing from spells
 Focusing Stone | +15% spell damage
+
+
+UNIQUES
+
+ 
+The Toxic Waltz (Leather boots): Dodge 2%, Affliction avoidance 5%, Poison enemies when you dodge 
+Harlequin's Crest (Shako): +1 spell rating, +1 armor, +1 endurance per character level
