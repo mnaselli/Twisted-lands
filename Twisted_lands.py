@@ -196,14 +196,23 @@ class CreatureAction:
             self.cooldown_timer -= 1        
     
     def is_usable(self, creature):
+
         if self.cooldown_timer > 0:
-            return False
-        if self.required_parts:
-            for part_name in self.required_parts:
-                if part_name in creature.body_parts and creature.body_parts[part_name].current_hp == 0:
-                    return False  
-        return True  
-    
+             return False  # The action is on cooldown
+
+        for parts_tuple in self.required_parts:
+            all_destroyed = True
+            for part in parts_tuple:
+                if part in creature.body_parts:
+                    if creature.body_parts[part].current_hp > 0:
+                        all_destroyed = False
+                        break
+                else:
+                    all_destroyed = False
+                    break
+            if all_destroyed:
+                return False  # All parts in this tuple are destroyed, hence action is not usable
+        return True
     
     
 # =============================================================================
@@ -274,12 +283,9 @@ class Character:
 
         def take_damage(self, body_part_name, damage):
             if body_part_name in self.body_parts:
-                critical_destroyed = self.body_parts[body_part_name].take_damage(damage)
-                if critical_destroyed:
-                    print(f"Critical body part {body_part_name} destroyed! Critical situation!")
+                self.body_parts[body_part_name].take_damage(damage)
                 self.body_parts[body_part_name].update_conditions()
-            else:
-                print(f"No such body part: {body_part_name}")
+
 
         
         
@@ -456,7 +462,7 @@ class Creature:
         self.spells_known = []
         self.inventory = []
         self.conditions = set()
-        self.initiative = 20
+        self.initiative = 40
         self.initial_initiative = 0
         self.body_parts = {
             'Torso': BodyPart('Torso', 35, 5, is_vital=True),
@@ -487,6 +493,14 @@ class Creature:
     
     def get_all_body_parts(self):
         return list(self.body_parts.values())
+
+    def reduce_allbutchosen_cds(self,chosen_action):
+        for action in self.available_actions:
+            if action.name != chosen_action.name:
+                action.reduce_cooldown()
+
+
+
 
 # =============================================================================
 # =============================================================================
@@ -807,12 +821,12 @@ def creature_tail_attack(target,creature,min_damage = 5,max_damage = 10, multipl
         damage = 0
         text += f"	The {creature.name} attacks your {target.name} with its tail, but you manage to dodge!"
     elif flag == "blocked":
-        damage_blocked = 0.5*damage
-        damage = damage*0.5
+        damage_blocked = int(0.5*damage)
+        damage = int(damage*0.5)
         text += f"	You block the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)"
     elif flag == "parried":
-        damage_parried = damage*0.25
-        damage = damage*0.75
+        damage_parried = int(damage*0.25)
+        damage = int(damage*0.75)
         text += f"	You parry the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)" 
     else:
         text += f"	The {creature.name} strikes your {target.name} with its tail for {damage} damage"
@@ -830,12 +844,12 @@ def creature_claw_attack(target,creature,min_damage = 2,max_damage = 5, multipli
         damage = 0
         text += f"	The {creature.name} attacks your {target.name} with its claw, but you manage to dodge!"
     elif flag == "blocked":
-        damage_blocked = 0.5*damage
-        damage = damage*0.5
+        damage_blocked = int(0.5*damage)
+        damage = int(damage*0.5)
         text += f"	You block the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)"
     elif flag == "parried":
-        damage_parried = damage*0.25
-        damage = damage*0.75
+        damage_parried = int(damage*0.25)
+        damage = int(damage*0.75)
         text += f"	You parry the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)" 
     else:
         text += f"	The {creature.name} strikes your {target.name} with its claw for {damage} damage"
@@ -991,8 +1005,6 @@ def play_random_sound(category):
     if category in sound_effects:
         sound_to_play = random.choice(sound_effects[category])
         sound_to_play.play()
-    else:
-        print(f"No such category: {category}")
 
 
 def generate_dynamic_text(template_text, options_dict):
@@ -1260,18 +1272,18 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
                 text += f"\n Your attack at {bodypart.name} misses the {creature.name}, dealing no damage!"
                 sound_effects['MissMelee1'].play()
             elif flag == "blocked":
-                damage_blocked = 0.5*damage
-                damage = damage*0.5
-                damage = damage - bodypart.armor
+                damage_blocked = int(0.5*damage)
+                damage = int(damage*0.5)
+                damage = max(damage - bodypart.armor,0)
                 text += f"\n Your attack at {bodypart.name} was blocked, dealing {damage}! ({damage_blocked} damage lost)({bodypart.armor} reduced by armor)"
                 play_random_sound("soundcategoryaxe")
             elif flag == "parried":
-                damage_parried = damage*0.25
-                damage = damage*0.75
-                damage = damage - bodypart.armor
+                damage_parried = int(damage*0.25)
+                damage = int(damage*0.75)
+                damage = max(damage - bodypart.armor,0)
                 text += f"\n Your attack at {bodypart.name} was parried, dealing {damage}! ({damage_parried} damage lost)({bodypart.armor} reduced by armor)" 
             else:
-                damage = damage - bodypart.armor
+                damage = max(damage - bodypart.armor,0)
                 text += f"\n Your {chosen_weapon_spell} hits the {creature.name}'s {bodypart.name} for {damage} damage ({bodypart.armor} reduced by armor)"
                # if chosen_weapon == "Axe":
                 #    sound_effects["soundcategoryaxe"].play()
@@ -1282,8 +1294,8 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
                 elif chosen_weapon_spell == "Quarterstaff":
                     play_random_sound("soundcategorystaff")
             
-            creature.current_endurance -= damage
-            bodypart.current_hp = bodypart.current_hp - damage
+            creature.current_endurance -= max(damage,0)
+            bodypart.current_hp -= damage
             left_info_box = update_combat_text(left_info_box, text)
             character.reduce_all_cds()
             
@@ -1306,8 +1318,7 @@ def creature_auto_target(character):
 
 def choose_creature_action(creature):
     
-    available_actions = [action for action in creature.available_actions if action.is_usable(creature)]
-    
+    available_actions = [action for action in creature.available_actions if action.is_usable(creature)]   
     weights = [action.priority for action in available_actions]
     
     chosen_action = random.choices(available_actions, weights=weights, k=1)[0]
@@ -1322,6 +1333,7 @@ def process_creature_action(creature_action,character,creature,left_info_box,rig
     if chosen_action.targeted:
         target =creature_auto_target(character)
     action_text = chosen_action.cast(character,creature,target)
+    creature.reduce_allbutchosen_cds(chosen_action)
     text = text + action_text
     
     right_info_box = update_combat_text(right_info_box, text)
@@ -1333,7 +1345,7 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
     character_turn_number = 0
     creature_turn_number = 0
 
-    while character.current_endurance>0 and creature.endurance>0 and not creature.check_vital_parts() and not character.check_vital_parts():
+    while character.current_endurance>0 and creature.current_endurance>0 and not creature.check_vital_parts() and not character.check_vital_parts():
         # Increase both character and creature's initial initiative
         character.initial_initiative += character.initiative
         creature.initial_initiative += creature.initiative
@@ -1391,7 +1403,8 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     info_texts = [
         f"Endurance: {character.current_endurance}/{character.endurance}",
         f"Head: {character.body_parts['Head'].current_hp}/{character.body_parts['Head'].max_hp}  Torso: {character.body_parts['Torso'].current_hp}/{character.body_parts['Torso'].max_hp}",
-        f"L. Arm: {character.body_parts['Left Arm'].current_hp}/{character.body_parts['Left Arm'].max_hp}  R. Arm: {character.body_parts['Right Arm'].current_hp}/{character.body_parts['Right Arm'].max_hp}  Legs: {character.body_parts['Legs'].current_hp}/{character.body_parts['Legs'].max_hp}"
+        f"L. Arm: {character.body_parts['Left Arm'].current_hp}/{character.body_parts['Left Arm'].max_hp}  R. Arm: {character.body_parts['Right Arm'].current_hp}/{character.body_parts['Right Arm'].max_hp}",
+        f"Legs: {character.body_parts['Legs'].current_hp}/{character.body_parts['Legs'].max_hp}"
     ]
     font = pygame.font.Font(font_path, 17)
     # Calculate the position and size for the info box
@@ -1444,6 +1457,9 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     
     font = pygame.font.Font(font_path, 30)
     creature_text = f"Endurance:{creature.current_endurance}"
+    for part in creature.body_parts.values():
+        if part.current_hp <= 0:
+            creature_text += f"  {part.name} DESTROYED"  # Return True if any vital part is destroyed
     text_surface = font.render(creature_text, True, (128, 128, 128))
     text_width, text_height = text_surface.get_size()
     box_x, box_y = 10, 10
@@ -1497,7 +1513,7 @@ def update_combat_text(surface, text, clear_surface=True):
         window.blit(surface, (0, 60))
         # Clear the previous text by filling the surface with the same translucent color
         new_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        new_surface.fill((0, 0, 0, 128))
+        new_surface.fill((0, 0, 0, 255))
     else:
         new_surface = surface
     blit_text(new_surface, text, (10, 10), (255, 255, 255)) 
@@ -1673,8 +1689,8 @@ current_slide_text = current_slide.text
 testy.available_spells.append(fireball)
 testy.available_spells.append(fissure)
 creature = Creature("Giant Rat Scorpion")
-creature_tail_attack = CreatureAction("Tail_Attack",[creature_tail_attack],2,priority = 2, required_parts=("Tail"))
-creature_swipe = CreatureAction("Swipe",[creature_swipe],2,priority = 3, required_parts=("Right Arm","Left Arm"),targeted = False)
+creature_tail_attack = CreatureAction("Tail_Attack",[creature_tail_attack],2,priority = 2, required_parts=[("Tail",)])
+creature_swipe = CreatureAction("Swipe",[creature_swipe],2,priority = 3, required_parts=[("Right Arm","Left Arm")],targeted = False)
 creature_claw_attack = CreatureAction("Claw_Attack",[creature_claw_attack],0)
 creature.available_actions.append(creature_tail_attack)
 creature.available_actions.append(creature_swipe)
