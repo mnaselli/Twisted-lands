@@ -163,7 +163,49 @@ class Spell:
         self.uses_per_rest = self.max_uses            
             
             
+# =============================================================================
+# =============================================================================
+# # Creature actions
+# =============================================================================
+# =============================================================================
 
+class CreatureAction:
+    def __init__(self, name, effects, cooldown,targeted = True,priority = 1, required_parts=None):
+        self.name = name
+        self.effects = effects  # This is a list of functions
+        self.cooldown = cooldown
+        self.cooldown_timer = 0  # Tracks cooldown status
+        self.targeted = targeted
+        self.priority = priority
+        self.required_parts = required_parts or []
+
+    def cast(self,character,creature,target, *args, **kwargs):
+        if self.cooldown_timer == 0:           
+            kwargs["target"] = target
+            kwargs["creature"] = creature
+            text = ""
+            spell_text= ""
+            for effect in self.effects:
+                spell_text=effect(*args, **kwargs)  # Execute each effect function
+                text = text + spell_text
+            self.cooldown_timer = self.cooldown  # Reset cooldown timer
+            return text
+        
+    def reduce_cooldown(self):
+        if self.cooldown_timer > 0:
+            self.cooldown_timer -= 1        
+    
+    def is_usable(self, creature):
+        if self.cooldown_timer > 0:
+            return False
+        if self.required_parts:
+            for part_name in self.required_parts:
+                if part_name in creature.body_parts and creature.body_parts[part_name].current_hp == 0:
+                    return False  
+        return True  
+    
+    
+    
 # =============================================================================
 # =============================================================================
 # # Character 
@@ -198,6 +240,7 @@ class Character:
         self.spells_known = []
         self.available_spells = []
         self.rituals_known = []
+        self.conditions = set()
         self.body_parts = {
             'Torso': BodyPart('Torso', 100, 5, is_vital=True),
             'Left Arm': BodyPart('Left Arm', 50,3,dodge_offset=0.05),
@@ -234,7 +277,7 @@ class Character:
                 critical_destroyed = self.body_parts[body_part_name].take_damage(damage)
                 if critical_destroyed:
                     print(f"Critical body part {body_part_name} destroyed! Critical situation!")
-                self.body_parts[body_part_name].update_condition()
+                self.body_parts[body_part_name].update_conditions()
             else:
                 print(f"No such body part: {body_part_name}")
 
@@ -302,6 +345,9 @@ class Character:
     @property
     def ritual_rating(self):
         return self._ritual_rating_base + 1 * self.faith
+    
+    def get_all_body_parts(self):
+        return list(self.body_parts.values())
 
     def equip_item(self, item):
         # Check if an item of the same type is already equipped and unequip it first
@@ -409,6 +455,7 @@ class Creature:
         self.perks = []
         self.spells_known = []
         self.inventory = []
+        self.conditions = set()
         self.initiative = 20
         self.initial_initiative = 0
         self.body_parts = {
@@ -421,7 +468,7 @@ class Creature:
         }
         for part in self.body_parts.values():
             part.owner = self
-#        self.available_actions = [bite_attack,claw_attack]
+        self.available_actions = []
 
     @property
     def dodge(self):
@@ -746,6 +793,68 @@ def toggle_debug_mode():
 # FUNCIONES
 # =============================================================================
 
+# =============================================================================
+# =============================================================================
+# # creature effects
+# =============================================================================
+# =============================================================================
+
+def creature_tail_attack(target,creature,min_damage = 5,max_damage = 10, multiplier = 1):
+    damage = damage = random.randint(min_damage, max_damage)
+    flag = dodge_block_parry(creature,target)
+    text = ""
+    if flag == "dodged":
+        damage = 0
+        text += "\n The {creature.name} attacks your {target.name} with its tail, but you manage to dodge!"
+    elif flag == "blocked":
+        damage_blocked = 0.5*damage
+        damage = damage*0.5
+        text += f"\n You block the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)"
+    elif flag == "parried":
+        damage_parried = damage*0.25
+        damage = damage*0.75
+        text += f"\n You parry the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)" 
+    else:
+        text += f"\n The {creature.name} strikes your {target.name} with its tail for {damage} damage"
+        
+        
+    target.current_hp -= damage
+    target.owner.current_endurance -= damage
+    return text
+    
+def creature_claw_attack(target,creature,min_damage = 2,max_damage = 5, multiplier = 1):
+    damage = damage = random.randint(min_damage, max_damage)
+    flag = dodge_block_parry(creature,target)
+    text = ""
+    if flag == "dodged":
+        damage = 0
+        text += "\n The {creature.name} attacks your {target.name} with its claw, but you manage to dodge!"
+    elif flag == "blocked":
+        damage_blocked = 0.5*damage
+        damage = damage*0.5
+        text += f"\n You block the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)"
+    elif flag == "parried":
+        damage_parried = damage*0.25
+        damage = damage*0.75
+        text += f"\n You parry the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)" 
+    else:
+        text += f"\n The {creature.name} strikes your {target.name} with its claw for {damage} damage"
+        
+        
+    target.current_hp = target.current_hp - damage
+    target.owner.current_endurance -= damage
+    return text
+
+
+def creature_swipe(target,creature,min_damage = 2,max_damage = 5, multiplier = 1):
+    damage = damage = random.randint(min_damage, max_damage)
+    #flag = dodge_block_parry(target, creature)
+    text = ""
+    text += f"\n The {creature.name} swipes at you with its claws for {damage} damage"
+    for body_part in target.get_all_body_parts():
+        body_part.current_hp -= damage
+    target.current_endurance -= damage
+    return text
 
 # =============================================================================
 # =============================================================================
@@ -837,9 +946,7 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
             
             target.current_endurance -= damage
             if random.random() < 0.2:
-                
-                for body_part in target.get_all_body_parts():
-                    body_part.condition.append("burn")
+                target.conditions.append("burn")
                 text = text + " and burns them"
         case 4:
             damage = random.randint(8, 10)
@@ -848,10 +955,8 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.current_endurance -= damage
-            if random.random() < 0.2:
-                
-                for body_part in target.get_all_body_parts():
-                    body_part.condition.append("burn")
+            if random.random() < 0.3:
+                target.conditions.append("burn")
                 text = text + " and burns them"
         case 5:
             damage = random.randint(11, 15)
@@ -860,10 +965,8 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.current_endurance -= damage
-            if random.random() < 0.2:
-                
-                for body_part in target.get_all_body_parts():
-                    body_part.condition.append("burn")
+            if random.random() < 0.4:
+                target.conditions.append("burn")
                 text = text + " and burns them"                    
         case 0:
             damage = 1
@@ -1085,17 +1188,6 @@ def body_part_targeting(ui_manager,window,target):
     clean_combat_buttons()
     return bodypart_chosen
    
-    
-        
-        
-        
-        
-
-def claw_attack(character,creature):
-    damage = random.randint(4, 8)
-   # character.current_endurance = character.current_endurance - damage
-    return damage
-
 def combat_background(ui_manager,window):
     window_width, window_height = 800, 600
     # Calculate the height for each section
@@ -1197,10 +1289,9 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
             
         case "spell":
             chosen_spell = next((spell for spell in character.available_spells if spell.name == chosen_weapon_spell), None)
+            target = creature
             if chosen_spell.targeted:
                 target = body_part_targeting(ui_manager, window, creature)
-            else:
-                target = creature
             spell_text = chosen_spell.cast(character,creature,target)
             text = text + spell_text
             left_info_box = update_combat_text(left_info_box, text)  
@@ -1208,26 +1299,31 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
         
     return left_info_box
 
-def process_creature_action(creature_action,character,creture,left_info_box,right_info_box,creature_turn_number):
-    damage = claw_attack(character, creature)
-    flag = dodge_block_parry(character, creature)
+def creature_auto_target(character):
+    available_targets = [part for part_name, part in character.body_parts.items() if part.current_hp > 0]
+    chosen_target = random.choices(available_targets,k=1)[0]
+    return chosen_target
+
+def choose_creature_action(creature):
+    
+    available_actions = [action for action in creature.available_actions if action.is_usable(creature)]
+    
+    weights = [action.priority for action in available_actions]
+    
+    chosen_action = random.choices(available_actions, weights=weights, k=1)[0]
+    
+    return chosen_action
+
+    
+def process_creature_action(creature_action,character,creature,left_info_box,right_info_box,creature_turn_number):
     text = f"Turn {creature_turn_number}                "
-    if flag == "dodged":
-        damage = 0
-        text += "\n The Creature lounges, but you manage to dodge!"
-    elif flag == "blocked":
-        damage_blocked = 0.5*damage
-        damage = damage*0.5
-        text += f"\n You block the Creature attack, receiveing {damage} ({damage_blocked} damage mitigated)"
-    elif flag == "parried":
-        damage_parried = damage*0.25
-        damage = damage*0.75
-        text += f"\n You parry the Creature attack, receiveing {damage} ({damage_parried} gets mitigated)" 
-    else:
-        text += f"\n The Creature strikes you for {damage} damage"
-        
-        
-    character.current_endurance = character.current_endurance - damage
+    chosen_action = choose_creature_action(creature)
+    target = character
+    if chosen_action.targeted:
+        target =creature_auto_target(character)
+    action_text = chosen_action.cast(character,creature,target)
+    text = text + action_text
+    
     right_info_box = update_combat_text(right_info_box, text)
     return right_info_box
 
@@ -1571,11 +1667,19 @@ testy.available_weapons.append(quarterstaff)
 
 fireball = Spell("Fireball", [spell_fireball], 5, 1)
 fissure = Spell("Fissure",[spell_fissure],5,1,targeted= False)
-creature = Creature("Giant Rat")
+
 character_window_reference = None
 current_slide_text = current_slide.text
 testy.available_spells.append(fireball)
 testy.available_spells.append(fissure)
+creature = Creature("Giant Rat Scorpion")
+creature_tail_attack = CreatureAction("Tail_Attack",[creature_tail_attack],2,priority = 2, required_parts=("Tail"))
+creature_swipe = CreatureAction("Swipe",[creature_swipe],2,priority = 3, required_parts=("Right Arm","Left Arm"),targeted = False)
+creature_claw_attack = CreatureAction("Claw_Attack",[creature_claw_attack],0)
+creature.available_actions.append(creature_tail_attack)
+creature.available_actions.append(creature_swipe)
+creature.available_actions.append(creature_claw_attack)
+
 
 
 # =============================================================================
