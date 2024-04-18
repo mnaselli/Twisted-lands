@@ -292,17 +292,7 @@ class Character:
     def copy_for_combat(self):
         """Create a deep copy of the character for combat purposes."""
         return copy.deepcopy(self)
-    
-    def update_after_combat(self, combat_character):
         
-        self.current_endurance = combat_character.current_endurance
-        self.current_head_hp = combat_character.current_head_hp
-        self.current_torso_hp = combat_character.current_torso_hp
-        self.current_larm_hp = combat_character.current_larm_hp
-        self.current_rarm_hp = combat_character.current_torso_hp
-        self.current_legs_hp = combat_character.current_legs_hp
-        
-    
     @property
     def strength(self):
         return self._strength
@@ -823,13 +813,16 @@ def creature_tail_attack(target,creature,min_damage = 5,max_damage = 10, multipl
     elif flag == "blocked":
         damage_blocked = int(0.5*damage)
         damage = int(damage*0.5)
-        text += f"	You block the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)"
+        damage -= target.armor
+        text += f"	You block the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)(reduced {target.armor} damage by your armor)"
     elif flag == "parried":
         damage_parried = int(damage*0.25)
         damage = int(damage*0.75)
-        text += f"	You parry the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)" 
+        damage -= target.armor
+        text += f"	You parry the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)(reduced {target.armor} damage by your armor) "
     else:
-        text += f"	The {creature.name} strikes your {target.name} with its tail for {damage} damage"
+        damage -= target.armor
+        text += f"	The {creature.name} strikes your {target.name} with its tail for {damage} damage(reduced {target.armor} damage by your armor)"
         
         
     target.current_hp -= damage
@@ -846,15 +839,18 @@ def creature_claw_attack(target,creature,min_damage = 2,max_damage = 5, multipli
     elif flag == "blocked":
         damage_blocked = int(0.5*damage)
         damage = int(damage*0.5)
-        text += f"	You block the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)"
+        damage -= target.armor
+        text += f"	You block the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)(reduced {target.armor} damage by your armor)"
     elif flag == "parried":
         damage_parried = int(damage*0.25)
         damage = int(damage*0.75)
-        text += f"	You parry the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)" 
+        damage -= target.armor
+        text += f"	You parry the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)(reduced {target.armor} damage by your armor)" 
     else:
-        text += f"	The {creature.name} strikes your {target.name} with its claw for {damage} damage"
+        damage -= target.armor
+        text += f"	The {creature.name} strikes your {target.name} with its claw for {damage} damage(reduced {target.armor} damage by your armor) "
         
-        
+    damage -= target.armor    
     target.current_hp = target.current_hp - damage
     target.owner.current_endurance -= damage
     return text
@@ -1344,6 +1340,7 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
     creature_turn = False
     character_turn_number = 0
     creature_turn_number = 0
+    last_weapon_used = None
 
     while character.current_endurance>0 and creature.current_endurance>0 and not creature.check_vital_parts() and not character.check_vital_parts():
         # Increase both character and creature's initial initiative
@@ -1361,7 +1358,8 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
         # Handle the character's turn
         if character_turn:
             character_turn_number += 1
-            character_action,chosen_weapon_spell = wait_for_player_action(ui_manager,window,character,creature)  # Function to wait for player to press a button
+            character_action,chosen_weapon_spell = wait_for_player_action(ui_manager,window,character,creature)
+            if chosen_weapon_spell # Function to wait for player to press a button
             left_info_box = process_character_action(ui_manager,window,character_action,chosen_weapon_spell, character, creature,left_info_box,right_info_box,character_turn_number)
             character_turn = False  # Reset the flag after the character's turn is processed
 
