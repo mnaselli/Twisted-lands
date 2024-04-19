@@ -10,6 +10,7 @@ import random
 import json
 import copy
 import math
+import Creature_randomizer
 pygame.init()
 pygame.font.init()
 pygame.mixer.init()
@@ -775,6 +776,7 @@ button_paths_test = []
 button_paths_ids_test = []
 button_paths_combat = []
 button_paths_ids_combat = []
+base_creatures = []
 
 
 
@@ -1067,6 +1069,16 @@ def basic_attack(character,creature,chosen_weapon):
 
      damage = character.get_attack_damage(chosen_weapon)
      return damage
+
+def create_hybrid_creature():
+    creature_parts = ['front_legs', 'back_legs', 'torso', 'head', 'tail', 'wings']
+    hybrid_creature = {}
+    
+    for part in creature_parts:
+        selected_creature = random.choice(list(base_creatures.keys()))
+        hybrid_creature[part] = base_creatures[selected_creature].get(part, 'None')
+    
+    return hybrid_creature
 
 def clean_combat_buttons():
     global button_paths_combat, button_paths_ids_combat
