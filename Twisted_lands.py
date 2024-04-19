@@ -525,6 +525,11 @@ def create_item(name):
     return None
 
 
+class Weapon(Item):
+    def __init__(self, name, weight, damage,item_type,weight_type = None, min_damage=None,max_damage=None, stat_modifiers=None, special_abilities=None):
+        super().__init__(self, name, item_type,weight_type = None, min_damage=None,max_damage=None, stat_modifiers=None, special_abilities=None)
+        self.damage
+
 # =============================================================================
 # GAME DEF
 # =============================================================================
@@ -1357,9 +1362,11 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
 
         # Handle the character's turn
         if character_turn:
+            last_weapon_used = None
             character_turn_number += 1
-            character_action,chosen_weapon_spell = wait_for_player_action(ui_manager,window,character,creature)
-            if chosen_weapon_spell # Function to wait for player to press a button
+            character_action,chosen_weapon_spell = wait_for_player_action(ui_manager,window,character,creature)# Function to wait for player to press a button
+            if character_action == "attack":
+                last_weapon_used = next((item for item in character.available_weapons if item.name == chosen_weapon_spell), None)
             left_info_box = process_character_action(ui_manager,window,character_action,chosen_weapon_spell, character, creature,left_info_box,right_info_box,character_turn_number)
             character_turn = False  # Reset the flag after the character's turn is processed
 
