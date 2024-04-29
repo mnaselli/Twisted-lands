@@ -454,6 +454,12 @@ class Character:
                 return True
         return False
     
+    def has_skills_available_total(self):
+        for skill in self.available_skills:
+            if skill.cooldown_timer == 0 and skill.uses_remaining > 0:
+                return True
+        return False
+    
     def has_skills_available(self,weapon_family):
         # Check if any spells are available to cast
         for skill in self.available_skills:
@@ -1288,7 +1294,6 @@ def choose_skill(ui_manager,window,character):
         clean_combat_buttons()
     
     filtered_weapons = character.filter_weapons_by_skills()
-    print(filtered_weapons)
     
     chosen_weapon = choose_weapon(ui_manager,window,character,filtered_weapons)
         
@@ -1394,6 +1399,11 @@ def combat_background(ui_manager,window):
 def wait_for_player_action(ui_manager,window,character,creature):
     action = None
     chosen_weapon_spell = None
+    if not character.has_spells_available():
+        button_Spell.disable()
+    if not character.has_skills_available_total():
+        button_Skill.disable()
+        
     # Event loop to wait for player's action
     while action is None:
         time_delta = clock.tick(60)/1000.0
@@ -1428,7 +1438,9 @@ def wait_for_player_action(ui_manager,window,character,creature):
         pygame.display.update()
 
         clock.tick(60)
-
+    
+    button_Spell.enable()
+    button_Skill.enable()
     return action,chosen_weapon_spell
 
 def process_character_action(ui_manager,window,character_action,chosen_weapon_spell,character,creture,left_info_box,right_info_box,character_turn_number):
@@ -1469,7 +1481,7 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
             creature.current_endurance -= max(damage,0)
             bodypart.current_hp -= damage
             left_info_box = update_combat_text(left_info_box, text)
-            character.b_cds()
+            character.reduce_all_cds()
             
         case "spell":
             chosen_spell = next((spell for spell in character.available_spells if spell.name == chosen_weapon_spell), None)
@@ -1870,7 +1882,7 @@ testy.available_weapons.append(quarterstaff)
 
 fireball = Spell("Fireball", [spell_fireball], 5, 1)
 fissure = Spell("Fissure",[spell_fissure],5,1,targeted= False)
-wallop = Spell("Wallop",[skill_wallop],1,1,required_weapon_family = "defense")
+wallop = Spell("Wallop",[skill_wallop],5,1,required_weapon_family = "defense")
 character_window_reference = None
 current_slide_text = current_slide.text
 testy.available_spells.append(fireball)
