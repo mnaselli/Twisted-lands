@@ -1012,7 +1012,7 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
             
             target.current_endurance -= damage
             if random.random() < 0.2:
-                target.conditions.append("burn")
+                target.conditions.add(("burn",3,character.level))
                 text = text + " and burns them"
         case 4:
             damage = random.randint(8, 10)
@@ -1022,7 +1022,7 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
                 body_part.current_hp -= damage
             target.current_endurance -= damage
             if random.random() < 0.3:
-                target.conditions.append("burn")
+                target.conditions.add(("burn",3,character.level))
                 text = text + " and burns them"
         case 5:
             damage = random.randint(11, 15)
@@ -1032,7 +1032,7 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
                 body_part.current_hp -= damage
             target.current_endurance -= damage
             if random.random() < 0.4:
-                target.conditions.append("burn")
+                target.conditions.add(("burn",3,character.level))
                 text = text + " and burns them"                    
         case 0:
             damage = 1
@@ -1056,7 +1056,7 @@ def skill_wallop(target,character,spell_level,multiplier = 1):
             text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.5:
                 text += "and blind them"
-                target.owner.conditions.add("blind")
+                target.owner.conditions.add(("blind",1))
 
         case 2:
             damage = math.ceil(damage * 0.7)
@@ -1065,7 +1065,7 @@ def skill_wallop(target,character,spell_level,multiplier = 1):
             text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.5:
                 text += "and blind them"
-                target.owner.conditions.add("blind")
+                target.owner.conditions.add(("blind",1))
         case 3:
             damage = math.ceil(damage * 0.8)
             target.current_hp -= damage
@@ -1073,7 +1073,7 @@ def skill_wallop(target,character,spell_level,multiplier = 1):
             text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.65:
                 text += "and blind them"
-                target.owner.conditions.add("blind")
+                target.owner.conditions.add(("blind",1))
         case 4:
             damage = math.ceil(damage * 0.9)
             target.current_hp -= damage
@@ -1081,21 +1081,21 @@ def skill_wallop(target,character,spell_level,multiplier = 1):
             text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.65:
                 text += "and blind them"
-                target.owner.conditions.add("blind")
+                target.owner.conditions.add(("blind",1))
         case 5:
             target.current_hp -= damage
             target.owner.current_endurance -= damage
             text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.65:
                 text += "and blind them"
-                target.owner.conditions.add("blind")               
+                target.owner.conditions.add(("blind",1))               
         case 0:
             damage = 1
             target.current_hp -= damage
             text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.5:
                 text += "and blind them"
-                target.owner.conditions.add("blind")
+                target.owner.conditions.add(("blind",1))
 
     return text
 
@@ -1443,6 +1443,55 @@ def wait_for_player_action(ui_manager,window,character,creature):
     button_Skill.enable()
     return action,chosen_weapon_spell
 
+def resolve_character_conditions(character):
+    text = ""
+    updated_conditions = set()
+    for conditions in character.conditions:
+        name,turns, *extras = conditions
+        if name == "bleed":
+            character.current_endurance -= extras[0] if extras else 0
+            text += f"You bleed for {extras[0]} damage"
+        if name == "poison":
+            character.current_endurance -= extras[0] if extras else 0
+            text += f"The poison deals {extras[0]} damage"
+        if name == "burn":
+            character.current_endurance -= extras[0] if extras else 0
+            text += f"You burn for {extras[0]} damage"
+        if turns > 1:
+            updated_condition = (name, turns - 1) + tuple(extras)
+            updated_conditions.add(updated_condition)
+        elif turns == 1:
+            text += f"{name} condition has ended"
+    character.conditions = updated_conditions
+    return text
+
+def resolve_creature_conditions(creature):
+    text = ""
+    updated_conditions = set()
+    counter = 0
+    for conditions in creature.conditions:
+        counter += 1
+        print (conditions)
+        name,turns, *extras = conditions
+        print (turns)
+        print(f"el counter es {counter}")
+        if name == "bleed":
+            creature.current_endurance -= extras[0] if extras else 0
+            text += f"{creature.name} bleeds for {extras[0]} damage"
+        if name == "poison":
+            creature.current_endurance -= extras[0] if extras else 0
+            text += f"The poison deals {extras[0]} damage"
+        if name == "burn":
+            creature.current_endurance -= extras[0] if extras else 0
+            text += f"The {creature.name} burn for {extras[0]} damage"
+        if turns > 1:
+            updated_condition = (name, turns - 1) + tuple(extras)
+            updated_conditions.add(updated_condition)
+        elif turns == 1:
+            text += f"{name} condition has ended"
+    creature.conditions = updated_conditions
+    return text
+
 def process_character_action(ui_manager,window,character_action,chosen_weapon_spell,character,creture,left_info_box,right_info_box,character_turn_number):
     text = f"Turn {character_turn_number}                " 
     match character_action:
@@ -1480,7 +1529,7 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
             
             creature.current_endurance -= max(damage,0)
             bodypart.current_hp -= damage
-            left_info_box = update_combat_text(left_info_box, text)
+            #left_info_box = update_combat_text(left_info_box, text)
             character.reduce_all_cds()
             
         case "spell":
@@ -1490,7 +1539,7 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
                 target = body_part_targeting(ui_manager, window, creature)
             spell_text = chosen_spell.cast(character,creature,target)
             text = text + spell_text
-            left_info_box = update_combat_text(left_info_box, text)  
+            #left_info_box = update_combat_text(left_info_box, text)  
             character.reduce_allbutchosen_cds(chosen_weapon_spell)
         case "skill":
             chosen_skill =  next((spell for spell in character.available_skills if spell.name == chosen_weapon_spell), None)
@@ -1499,10 +1548,13 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
                 target = body_part_targeting(ui_manager, window, creature)
             skill_text = chosen_skill.use_skill(character,creature,target)
             text = text + skill_text
-            left_info_box = update_combat_text(left_info_box, text)  
+            #left_info_box = update_combat_text(left_info_box, text)  
             character.reduce_allbutchosen_cds(chosen_weapon_spell)
-            
-            
+    
+    
+    condition_text = resolve_character_conditions(character)
+    text += condition_text        
+    left_info_box = update_combat_text(left_info_box, text)        
     return left_info_box
 
 def creature_auto_target(character):
@@ -1519,7 +1571,9 @@ def choose_creature_action(creature):
     
     return chosen_action
 
-    
+
+
+            
 def process_creature_action(creature_action,character,creature,left_info_box,right_info_box,creature_turn_number):
     text = f"Turn {creature_turn_number}                "
     chosen_action = choose_creature_action(creature)
@@ -1528,7 +1582,8 @@ def process_creature_action(creature_action,character,creature,left_info_box,rig
         target =creature_auto_target(character)
     action_text = chosen_action.cast(character,creature,target)
     creature.reduce_allbutchosen_cds(chosen_action)
-    text = text + action_text
+    condition_text = resolve_creature_conditions(creature)
+    text = text + action_text + condition_text
     
     right_info_box = update_combat_text(right_info_box, text)
     return right_info_box
