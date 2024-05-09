@@ -8,8 +8,8 @@ import pygame
 import pygame_gui
 import random
 import json
-import copy
 import math
+from Classes import Slide,BodyPart,Spell,Item,Weapon,Character,Creature,CreatureAction
 #import Creature_randomizer
 pygame.init()
 pygame.font.init()
@@ -26,573 +26,30 @@ pygame.mixer.init()
 # =============================================================================
 
 
-class Slide:
-    def __init__(self,slide_id, text_template, category,test = None,city_advancement = None,button_text = None, spell = None,item = None, previous_slide = None, success_slide_id = None, fail_slide_id = None, linked_slide_id=None, is_combat=False,background =None):
-        self.slide_id = slide_id
-        self.text = text_template
-        self.text_template = text_template
-        self.category = category 
-        self.linked_slide_id = linked_slide_id if linked_slide_id is not None else []
-        self.is_combat = is_combat
-        self.background = background
-        self.previous_slide = previous_slide
-        self.city_advancement = city_advancement if city_advancement is not None else 10 #aca despues lo pongo en random
-        self.use_spell = spell
-        self.use_item = item
-        self.button_text = button_text if button_text is not None else ["Move forward"]
-        self.test = test
-        self.success_slide_id = success_slide_id
-        self.fail_slide_id = fail_slide_id
-
-    def is_terminal(self):
-        return not self.linked_slide_id and not self.success_slide_id
 
 
-
+# =============================================================================
+# GAME DEF
+# =============================================================================
 def getSlidebyID(slide_id):
     for category in slides.values():
         for slide in category:  
             if slide.slide_id == slide_id:  
                 return slide  
-
-# =============================================================================
-# =============================================================================
-# # Body parts
-# =============================================================================
-# =============================================================================
-
-class BodyPart:
-    def __init__(self, name, max_hp, armor, dodge_offset=0, is_vital=False):
-        self.name = name
-        self.max_hp = max_hp
-        self.current_hp = max_hp
-        self.armor = armor
-        self.dodge_offset = dodge_offset
-        self.conditions = set()
-        self.is_vital = is_vital
-        self.owner = None
-
-        @property
-        def armor(self):
-                return self.armor
-    
-    @property
-    def dodge(self):
-        if self.owner:
-            return self.owner.dodge + self.dodge_offset
-        return self.dodge_offset
-    
-
-    def take_damage(self, damage):
-        effective_damage = max(0, damage - self.armor)
-        self.current_hp -= effective_damage
-        self.current_hp = max(0, self.current_hp)  # Prevent HP from going negative
-        self.update_conditions()
-        if self.is_important and self.current_hp == 0:
-            return "combat_end"
-        return "continue"
-    
-    def update_conditions(self):
-        if self.current_hp == 0:
-            self.conditions.add("destroyed")
-        elif self.current_hp <= self.max_hp / 2:
-            self.conditions.add("damaged")
-        else:
-            self.conditions.discard("damaged")
-
-    def heal(self, amount):
-        if self.current_hp > 0:  # Cannot heal a destroyed body part
-            self.current_hp += amount
-            self.current_hp = min(self.current_hp, self.max_hp)
-            self.update_conditions()
-
-
-# =============================================================================
-# =============================================================================
-# # Spells
-# =============================================================================
-# =============================================================================
-
-class Spell:
-    def __init__(self, name, effects, uses_remaining, cooldown,targeted = True,required_weapon_family = False):
-        self.name = name
-        self.effects = effects  # This is a list of functions
-        self.uses_remaining = uses_remaining 
-        self.max_uses = uses_remaining  # to reset uses after resting
-        self.cooldown = cooldown
-        self.cooldown_timer = 0  # Tracks cooldown status
-        self.targeted = targeted
-        self.required_weapon_family = required_weapon_family
-        
-    def cast(self,character,creature,target, *args, **kwargs):
-        if self.uses_remaining > 0 and self.cooldown_timer == 0:
             
-            spell_level_modifier = random.randint(8, 12) * character.spell_rating
-            spell_level = self.determine_spell_level(spell_level_modifier)
-            kwargs['spell_level'] = spell_level
-            kwargs["target"] = target
-            kwargs["character"] = character
-            #kwargs["creature"] = creature
-            text = ""
-            spell_text= ""
-            for effect in self.effects:
-                spell_text=effect(*args, **kwargs)  # Execute each effect function
-                text = text + spell_text
-            self.uses_remaining -= 1
-            self.cooldown_timer = self.cooldown  # Reset cooldown timer
-            return text
-        
-    def use_skill(self,character,creature,target, *args, **kwargs):
-        if self.uses_remaining > 0 and self.cooldown_timer == 0:
-            
-            skill_level_modifier = random.randint(8, 12) * character.skill_rating
-            skill_level = self.determine_spell_level(skill_level_modifier)
-            kwargs['spell_level'] = skill_level
-            kwargs["target"] = target
-            kwargs["character"] = character
-            #kwargs["creature"] = creature
-            text = ""
-            spell_text= ""
-            for effect in self.effects:
-                spell_text=effect(*args, **kwargs)  # Execute each effect function
-                text = text + spell_text
-            self.uses_remaining -= 1
-            self.cooldown_timer = self.cooldown  # Reset cooldown timer
-            return text
-    
-    def determine_spell_level(self, modifier):
-        if modifier > 180:
-            return 5
-        elif modifier > 150:
-            return 4
-        elif modifier > 130:
-            return 3
-        elif modifier > 100:
-            return 2
-        elif modifier > 0:
-            return 1
-        return 0        
-    
-    
-    def reduce_cooldown(self):
-        if self.cooldown_timer > 0:
-            self.cooldown_timer -= 1            
-            
-    def reset_uses(self):
-        self.uses_per_rest = self.max_uses            
-                   
-# =============================================================================
-# =============================================================================
-# # Creature actions
-# =============================================================================
-# =============================================================================
-
-class CreatureAction:
-    def __init__(self, name, effects, cooldown,targeted = True,priority = 1, required_parts=None):
-        self.name = name
-        self.effects = effects  # This is a list of functions
-        self.cooldown = cooldown
-        self.cooldown_timer = 0  # Tracks cooldown status
-        self.targeted = targeted
-        self.priority = priority
-        self.required_parts = required_parts or []
-
-    def cast(self,character,creature,target, *args, **kwargs):
-        if self.cooldown_timer == 0:           
-            kwargs["target"] = target
-            kwargs["creature"] = creature
-            text = ""
-            spell_text= ""
-            for effect in self.effects:
-                spell_text=effect(*args, **kwargs)  # Execute each effect function
-                text = text + spell_text
-            self.cooldown_timer = self.cooldown  # Reset cooldown timer
-            return text
-        
-    def reduce_cooldown(self):
-        if self.cooldown_timer > 0:
-            self.cooldown_timer -= 1        
-    
-    def is_usable(self, creature):
-
-        if self.cooldown_timer > 0:
-             return False  # The action is on cooldown
-
-        for parts_tuple in self.required_parts:
-            all_destroyed = True
-            for part in parts_tuple:
-                if part in creature.body_parts:
-                    if creature.body_parts[part].current_hp > 0:
-                        all_destroyed = False
-                        break
-                else:
-                    all_destroyed = False
-                    break
-            if all_destroyed:
-                return False  # All parts in this tuple are destroyed, hence action is not usable
-        return True
-    
-    
-# =============================================================================
-# =============================================================================
-# # Character 
-# =============================================================================
-# =============================================================================
-
-
-class Character:
-    def __init__(self,name,job,strength,agility,lore,faith):
-        self.name = name
-        self.level = 1
-        self.experience = 0
-        self.job = job
-        self._strength = strength
-        self._agility = agility
-        self._lore = lore 
-        self._faith = faith
-        self.endurance = 100
-        self.current_endurance = 100
-        self.sustenance = 100
-        self.current_sustenance = 100
-        self.accuracy = 0.75
-        self._dodge = 0.05
-        self.crit_chance = 0.15
-        self.carry_weight_base = 50
-        self.armor = 1
-        self._spell_rating_base = 1
-        self._ritual_rating_base = 1
-        self._skill_rating_base = 1
-        self.block = 0.1
-        self.parry = 0.1
-        self.perks = []
-        self.spells_known = []
-        self.available_spells = []
-        self.available_skills = []
-        self.rituals_known = []
-        self.conditions = set()
-        self.body_parts = {
-            'Torso': BodyPart('Torso', 100, 5, is_vital=True),
-            'Left Arm': BodyPart('Left Arm', 50,3,dodge_offset=0.05),
-            'Right Arm': BodyPart('Right Arm', 50, 3,dodge_offset=0.05),
-            'Head': BodyPart('Head', 30, 4, is_vital=True,dodge_offset=0.1),
-            'Legs': BodyPart('Legs', 80, 4,dodge_offset=0.05)
-        }
-        # Assign owner to body parts
-        for part in self.body_parts.values():
-            part.owner = self
-        self.initiative = 40
-        self.initial_initiative = 0
-        self.inventory = []
-        self.equipped_weapon = None
-        self.available_weapons = []
-        self.equipped_armor = None
-        
-
-        @property
-        def armor(self):
-            return self.armor
-        
-        @property
-        def dodge(self):
-            return self._dodge
-        
-        @dodge.setter
-        def dodge(self, value):
-            self._dodge = value
-
-
-        def take_damage(self, body_part_name, damage):
-            if body_part_name in self.body_parts:
-                self.body_parts[body_part_name].take_damage(damage)
-                self.body_parts[body_part_name].update_conditions()
-
-
-        
-        
-    def copy_for_combat(self):
-        """Create a deep copy of the character for combat purposes."""
-        return copy.deepcopy(self)
-        
-    @property
-    def strength(self):
-        return self._strength
-
-    @strength.setter
-    def strength(self, value):
-        self._strength = value
-
-    @property
-    def agility(self):
-        return self._agility
-
-    @agility.setter
-    def agility(self, value):
-        self._agility = value
-
-    @property
-    def lore(self):
-        return self._lore
-
-    @lore.setter
-    def lore(self, value):
-        self._lore = value
-
-    @property
-    def faith(self):
-        return self._faith
-
-    @faith.setter
-    def faith(self, value):
-        self._faith = value
-    
-    
-    @property
-    def dodge(self):
-        return self._dodge + 0.01 * self.agility
-
-    @property
-    def carry_weight(self):
-        return self._carry_weight_base + self.strength * 5
-
-    @property
-    def spell_rating(self):
-        return self._spell_rating_base + 1 * self.lore
-
-    @property
-    def ritual_rating(self):
-        return self._ritual_rating_base + 1 * self.faith
-    
-    @property
-    def skill_rating(self):
-        return self._skill_rating_base + 1 * max(self.strength,self.agility)
-    
-    def get_all_body_parts(self):
-        return list(self.body_parts.values())
-
-    def equip_item(self, item):
-        # Check if an item of the same type is already equipped and unequip it first
-        if item.item_type == 'weapon':
-            if self.equipped_weapon:
-                self.unequip_item('weapon')
-            self.equipped_weapon = item
-            self.available_weapons.append(item)
-        elif item.item_type == 'armor':
-            if self.equipped_armor:
-                self.unequip_item('armor')
-            self.equipped_armor = item
-        
-        # Apply the new item's effects
-        self.apply_item_effects(item)
-    
-    def unequip_item(self, item_type):
-        # Only try to unequip if there is an item equipped in the slot
-        if item_type == 'weapon' and self.equipped_weapon:
-            self.remove_item_effects(self.equipped_weapon)
-            self.equipped_weapon = None
-        elif item_type == 'armor' and self.equipped_armor:
-            self.remove_item_effects(self.equipped_armor)
-            self.equipped_armor = None
-    
-    def apply_item_effects(self, item):
-        # Apply stat modifiers and special abilities from the item
-        for stat, modifier in item.stat_modifiers:
-            setattr(self, stat, getattr(self, stat) + modifier)
-
-
-    def remove_item_effects(self, item):
-        # Reverse stat modifiers when an item is unequipped
-        for stat, modifier in item.stat_modifiers:
-            setattr(self, stat, getattr(self, stat) - modifier)
-            
-
-    def get_attack_modifier(self, weapon):
-
-        if weapon.weight_type == "heavy":
-            return self.strength
-        elif weapon.weight_type == "medium":
-            return max(self.strength, self.agility)
-        elif weapon.weight_type == "light":
-            return self.agility
-
-        return 0
-    def get_attack_damage(self, chosen_weapon):
-        # Search for the weapon by name in available_weapons
-        weapon = chosen_weapon#next((item for item in self.available_weapons if item.name == chosen_weapon_name), None)
-        if chosen_weapon:
-            # Calculate damage using the found weapon's damage range and character's stats
-            return random.randint(chosen_weapon.min_damage, chosen_weapon.max_damage) + self.get_attack_modifier(chosen_weapon)
-        else:
-            # Optionally handle the case where no weapon is found
-            return 1 + max(self.strength,self.agility)  # Default damage or consider raising an exception
-        
-        
-    def check_vital_parts(self):
-        """Check if any vital body part has 0 HP, indicating a critical condition."""
-        for part in self.body_parts.values():
-            if part.is_vital and part.current_hp <= 0:
-                return True  # Return True if any vital part is destroyed
-        return False  # Return False if all vital parts are still intact    
-        
-        
-    def get_other_body_parts(self, target_part_name):
-        # Return a list of all body parts except the one specified by target_part_name
-        return [part for name, part in self.body_parts.items() if name != target_part_name]
-    
-    def reduce_all_cds(self):
-        for spell in self.available_spells + self.available_skills:
-            spell.reduce_cooldown()
-    
-    def reduce_allbutchosen_cds(self,chosen_spell):
-        for spell in self.available_spells + self.available_skills:
-            if spell.name != chosen_spell:
-                spell.reduce_cooldown()
-
-    def has_spells_available(self):
-        # Check if any spells are available to cast
-        for spell in self.available_spells:
-            if spell.cooldown_timer == 0 and spell.uses_remaining > 0:
-                return True
-        return False
-    
-    def has_skills_available_total(self):
-        for skill in self.available_skills:
-            if skill.cooldown_timer == 0 and skill.uses_remaining > 0:
-                return True
-        return False
-    
-    def has_skills_available(self,weapon_family):
-        # Check if any spells are available to cast
-        for skill in self.available_skills:
-            if skill.cooldown_timer == 0 and skill.uses_remaining > 0 and skill.required_weapon_family == weapon_family:
-                return True
-        return False
-
-    def filter_weapons_by_skills(self):
-        # Gather all required weapon families from skills
-        required_families = {skill.required_weapon_family for skill in self.available_skills}
-
-        # Filter weapons where their family is needed by at least one skill
-        filtered_weapons = [weapon for weapon in self.available_weapons if weapon.weapon_family in required_families]
-
-        return filtered_weapons
-
-# =============================================================================
-# =============================================================================
-# # Creature
-# =============================================================================
-# =============================================================================
-
-class Creature:
-    def __init__(self,name):
-        self.name = name
-        self.endurance = 35
-        self.current_endurance = 35
-        self.accuracy = 0.75
-        self._dodge = 0.05
-        self.crit_chance = 0.30
-        self.armor = 4
-        self._spell_rating_base = 1
-        self.block = 0
-        self.parry = 0
-        self.perks = []
-        self.spells_known = []
-        self.inventory = []
-        self.conditions = set()
-        self.initiative = 40
-        self.initial_initiative = 0
-        self.body_parts = {
-            'Torso': BodyPart('Torso', 35, 5, is_vital=True),
-            'Left Arm': BodyPart('Left Arm', 15,3,dodge_offset=0.05),
-            'Right Arm': BodyPart('Right Arm', 15, 3,dodge_offset=0.05),
-            'Head': BodyPart('Head', 30, 4, is_vital=True,dodge_offset=0.1),
-            'Legs': BodyPart('Legs', 10, 4,dodge_offset=0.05),
-            "Tail": BodyPart('Tail', 20, 4,dodge_offset=0.05)
-        }
-        for part in self.body_parts.values():
-            part.owner = self
-        self.available_actions = []
-
-    @property
-    def dodge(self):
-        return self._dodge
-    
-    def check_vital_parts(self):
-        """Check if any vital body part has 0 HP, indicating a critical condition."""
-        for part in self.body_parts.values():
-            if part.is_vital and part.current_hp <= 0:
-                return True  # Return True if any vital part is destroyed
-        return False  # Return False if all vital parts are still intact
-    
-    def get_other_body_parts(self, target_part_name):
-        # Return a list of all body parts except the one specified by target_part_name
-        return [part for name, part in self.body_parts.items() if name != target_part_name]
-    
-    def get_all_body_parts(self):
-        return list(self.body_parts.values())
-
-    def reduce_allbutchosen_cds(self,chosen_action):
-        for action in self.available_actions:
-            if action.name != chosen_action.name:
-                action.reduce_cooldown()
-
-
-
-
-# =============================================================================
-# =============================================================================
-# # ITEMS
-# =============================================================================
-# =============================================================================
-
-class Item:
-    def __init__(self, name, item_type,stat_modifiers=None, special_abilities=None):#,weight_type = None, min_damage=None,max_damage=None, stat_modifiers=None, special_abilities=None):
-        self.name = name
-        self.item_type = item_type
-        self.stat_modifiers = stat_modifiers if stat_modifiers else []
-        self.special_abilities = special_abilities if special_abilities else []
-
-class Weapon(Item):
-    def __init__(self, name,item_type,weapon_family,weapon_type,weight_type = None, min_damage=None,max_damage=None, stat_modifiers=None, special_abilities=None):
-        super().__init__(name, item_type, stat_modifiers, special_abilities)
-        self.weight_type = weight_type
-        self.weapon_family = weapon_family
-        self.weapon_type = weapon_type
-        self.min_damage = min_damage
-        self.max_damage = max_damage
-
-        
-        
 def increase_speed(character):
     character.agility += 1 
 def heal(character):
     character.health += 10
-
-def create_item(name):
-    # Iterate through each category in the items dictionary
-    for category in items.values():
-        # Look for the item by name
-        for item in category:
-            if item.name == name:
-                if item.item_type == "weapon":
-                    return item
-                # Found the item, create a new instance and return it
-                return item#Item(item.name, item.item_type,item.weight_type, item.min_damage, item.max_damage, item.stat_modifiers, item.special_abilities)
-    # If item not found, return None or raise an error
-    return None
-
-# =============================================================================
-# GAME DEF
-# =============================================================================
 
 items = {
     "armor": [
         Item("Boots of Swiftness","armor",stat_modifiers=[("agility", 1)],special_abilities=[increase_speed])
     ],
     "weapon": [
-        Weapon("Shortsword","weapon","blade","arming sword",weight_type = "medium",min_damage = 5,max_damage = 10,stat_modifiers=[("strength",2)]),     
-        Weapon("Axe","weapon","ax","war axe",weight_type = "heavy",min_damage = 5,max_damage = 14,stat_modifiers=[("strength",2)]),
-       # Weapon("Bow","weapon",min_damage = 5,max_damage = 5,stat_modifiers=[("agility",2)]),
-        Weapon("Quarterstaff","weapon","defense","quarterstaff",weight_type = "light",min_damage = 3,max_damage = 8,stat_modifiers=[("strength",2)]) 
+        Weapon("Shortsword","weapon","blade","arming sword","medium",min_damage = 5,max_damage = 10),     
+        Weapon("Axe","weapon","ax","war axe","heavy",min_damage = 5,max_damage = 14),
+        Weapon("Quarterstaff","weapon","defense","quarterstaff","light",min_damage = 3,max_damage = 8) 
     ],
     "consumable": [
         Item("potion","consumable",special_abilities=[heal])
@@ -859,6 +316,12 @@ def toggle_debug_mode():
 # =============================================================================
 # =============================================================================
 
+def calc_modifier_creature(character,creature,extra = 0):
+     modifier = 1 - extra
+     if creature.iscursed:
+        modifier - 0.2         
+     return modifier
+
 def creature_tail_attack(target,creature,min_damage = 5,max_damage = 10, multiplier = 1):
     damage = random.randint(min_damage, max_damage)
     flag = dodge_block_parry(creature,target)
@@ -868,16 +331,22 @@ def creature_tail_attack(target,creature,min_damage = 5,max_damage = 10, multipl
         text += f"	The {creature.name} attacks your {target.name} with its tail, but you manage to dodge!"
     elif flag == "blocked":
         damage_blocked = int(0.5*damage)
-        damage = int(damage*0.5)
-        damage -= target.armor
+        damage = damage*0.5
+        damage = int(damage-target.armor)
+        if last_weapon_used:
+            damage -=- last_weapon_used.armor
         text += f"	You block the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)(reduced {target.armor} damage by your armor)"
     elif flag == "parried":
         damage_parried = int(damage*0.25)
-        damage = int(damage*0.75)
-        damage -= target.armor
+        damage = damage*0.75
+        damage = int(damage-target.armor)
+        if last_weapon_used:
+            damage -=- last_weapon_used.armor
         text += f"	You parry the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)(reduced {target.armor} damage by your armor) "
     else:
-        damage -= target.armor
+        damage = int(damage-target.armor)
+        if last_weapon_used:
+            damage -=- last_weapon_used.armor
         text += f"	The {creature.name} strikes your {target.name} with its tail for {damage} damage(reduced {target.armor} damage by your armor)"
         
         
@@ -894,19 +363,25 @@ def creature_claw_attack(target,creature,min_damage = 2,max_damage = 5, multipli
         text += f"	The {creature.name} attacks your {target.name} with its claw, but you manage to dodge!"
     elif flag == "blocked":
         damage_blocked = int(0.5*damage)
-        damage = int(damage*0.5)
-        damage -= target.armor
+        damage = damage*0.5
+        damage = int(damage-target.armor)
+        if last_weapon_used:
+            damage -=- last_weapon_used.armor
         text += f"	You block the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)(reduced {target.armor} damage by your armor)"
     elif flag == "parried":
         damage_parried = int(damage*0.25)
-        damage = int(damage*0.75)
-        damage -= target.armor
+        damage = damage*0.75
+        #damage = calc_modifier_creature(target,creature,extra = 0.25)
+        damage = int(damage-target.armor)
+        if last_weapon_used:
+            damage -=- last_weapon_used.armor
         text += f"	You parry the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)(reduced {target.armor} damage by your armor)" 
     else:
-        damage -= target.armor
+        damage = int(damage-target.armor)
+        if last_weapon_used:
+            damage -=- last_weapon_used.armor
         text += f"	The {creature.name} strikes your {target.name} with its claw for {damage} damage(reduced {target.armor} damage by your armor) "
-        
-    damage -= target.armor    
+          
     target.current_hp = target.current_hp - damage
     target.owner.current_endurance -= damage
     return text
@@ -1044,7 +519,12 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
     
     return text
     
-    
+# =============================================================================
+# =============================================================================
+# # SKILLS 
+# =============================================================================
+# =============================================================================
+
 def skill_wallop(target,character,spell_level,multiplier = 1):
     damage = character.get_attack_damage(last_weapon_used)
     text = ""
@@ -1107,6 +587,22 @@ def skill_wallop(target,character,spell_level,multiplier = 1):
 # # others
 # =============================================================================
 # =============================================================================
+
+def create_item(name):
+    # Iterate through each category in the items dictionary
+    for category in items.values():
+        # Look for the item by name
+        for item in category:
+            if item.name == name:
+                if item.item_type == "weapon":
+                    return item
+                # Found the item, create a new instance and return it
+                return item#Item(item.name, item.item_type,item.weight_type, item.min_damage, item.max_damage, item.stat_modifiers, item.special_abilities)
+    # If item not found, return None or raise an error
+    return None
+
+
+
 def play_random_sound(category):
     if category in sound_effects:
         sound_to_play = random.choice(sound_effects[category])
@@ -1468,13 +964,8 @@ def resolve_character_conditions(character):
 def resolve_creature_conditions(creature):
     text = ""
     updated_conditions = set()
-    counter = 0
     for conditions in creature.conditions:
-        counter += 1
-        print (conditions)
         name,turns, *extras = conditions
-        print (turns)
-        print(f"el counter es {counter}")
         if name == "bleed":
             creature.current_endurance -= extras[0] if extras else 0
             text += f"{creature.name} bleeds for {extras[0]} damage"
@@ -1483,6 +974,8 @@ def resolve_creature_conditions(creature):
             text += f"The poison deals {extras[0]} damage"
         if name == "burn":
             creature.current_endurance -= extras[0] if extras else 0
+            #if "fan the flames" in character.perks:
+                
             text += f"The {creature.name} burn for {extras[0]} damage"
         if turns > 1:
             updated_condition = (name, turns - 1) + tuple(extras)
@@ -1505,7 +998,7 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
                 text += f"\n Your attack at {bodypart.name} misses the {creature.name}, dealing no damage!"
                 sound_effects['MissMelee1'].play()
             elif flag == "blocked":
-                damage_blocked = int(0.5*damage)
+                damage_blocked = 0.5* chosen_weapon_spell.negblock_parry
                 damage = int(damage*0.5)
                 damage = max(damage - bodypart.armor,0)
                 text += f"\n Your attack at {bodypart.name} was blocked, dealing {damage}! ({damage_blocked} damage lost)({bodypart.armor} reduced by armor)"
@@ -1517,7 +1010,7 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
                 text += f"\n Your attack at {bodypart.name} was parried, dealing {damage}! ({damage_parried} damage lost)({bodypart.armor} reduced by armor)" 
             else:
                 damage = max(damage - bodypart.armor,0)
-                text += f"\n Your {chosen_weapon_spell} hits the {creature.name}'s {bodypart.name} for {damage} damage ({bodypart.armor} reduced by armor)"
+                text += f"\n Your {chosen_weapon_spell.name} hits the {creature.name}'s {bodypart.name} for {damage} damage ({bodypart.armor} reduced by armor)"
                # if chosen_weapon == "Axe":
                 #    sound_effects["soundcategoryaxe"].play()
                # elif chosen_weapon == "Quarterstaff":
