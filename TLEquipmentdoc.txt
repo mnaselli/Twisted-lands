@@ -49,7 +49,7 @@ Spiked Buckler | 10% block, deal 1-4 damage when blocking
 Shield | 20% chance to block
 Tower Shield | 30% chance to block, -3% dodge
 Parrying Dagger | 30% to parry
-Swordbreaker | 10% to parry, 25% chance to disarm on parry
+Swordbreaker | 10% to parry, 20% chance to restrain on parry
 Censer | +33% healing from spells
 Focusing Stone | +15% spell damage
 
