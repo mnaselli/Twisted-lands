@@ -10,6 +10,7 @@ import random
 import json
 import copy
 import math
+#import Creature_randomizer
 pygame.init()
 pygame.font.init()
 pygame.mixer.init()
@@ -113,7 +114,7 @@ class BodyPart:
 # =============================================================================
 
 class Spell:
-    def __init__(self, name, effects, uses_remaining, cooldown,targeted = True):
+    def __init__(self, name, effects, uses_remaining, cooldown,targeted = True,required_weapon_family = False):
         self.name = name
         self.effects = effects  # This is a list of functions
         self.uses_remaining = uses_remaining 
@@ -121,7 +122,8 @@ class Spell:
         self.cooldown = cooldown
         self.cooldown_timer = 0  # Tracks cooldown status
         self.targeted = targeted
-
+        self.required_weapon_family = required_weapon_family
+        
     def cast(self,character,creature,target, *args, **kwargs):
         if self.uses_remaining > 0 and self.cooldown_timer == 0:
             
@@ -140,6 +142,23 @@ class Spell:
             self.cooldown_timer = self.cooldown  # Reset cooldown timer
             return text
         
+    def use_skill(self,character,creature,target, *args, **kwargs):
+        if self.uses_remaining > 0 and self.cooldown_timer == 0:
+            
+            skill_level_modifier = random.randint(8, 12) * character.skill_rating
+            skill_level = self.determine_spell_level(skill_level_modifier)
+            kwargs['spell_level'] = skill_level
+            kwargs["target"] = target
+            kwargs["character"] = character
+            #kwargs["creature"] = creature
+            text = ""
+            spell_text= ""
+            for effect in self.effects:
+                spell_text=effect(*args, **kwargs)  # Execute each effect function
+                text = text + spell_text
+            self.uses_remaining -= 1
+            self.cooldown_timer = self.cooldown  # Reset cooldown timer
+            return text
     
     def determine_spell_level(self, modifier):
         if modifier > 180:
@@ -161,9 +180,59 @@ class Spell:
             
     def reset_uses(self):
         self.uses_per_rest = self.max_uses            
-            
-            
+                   
+# =============================================================================
+# =============================================================================
+# # Creature actions
+# =============================================================================
+# =============================================================================
 
+class CreatureAction:
+    def __init__(self, name, effects, cooldown,targeted = True,priority = 1, required_parts=None):
+        self.name = name
+        self.effects = effects  # This is a list of functions
+        self.cooldown = cooldown
+        self.cooldown_timer = 0  # Tracks cooldown status
+        self.targeted = targeted
+        self.priority = priority
+        self.required_parts = required_parts or []
+
+    def cast(self,character,creature,target, *args, **kwargs):
+        if self.cooldown_timer == 0:           
+            kwargs["target"] = target
+            kwargs["creature"] = creature
+            text = ""
+            spell_text= ""
+            for effect in self.effects:
+                spell_text=effect(*args, **kwargs)  # Execute each effect function
+                text = text + spell_text
+            self.cooldown_timer = self.cooldown  # Reset cooldown timer
+            return text
+        
+    def reduce_cooldown(self):
+        if self.cooldown_timer > 0:
+            self.cooldown_timer -= 1        
+    
+    def is_usable(self, creature):
+
+        if self.cooldown_timer > 0:
+             return False  # The action is on cooldown
+
+        for parts_tuple in self.required_parts:
+            all_destroyed = True
+            for part in parts_tuple:
+                if part in creature.body_parts:
+                    if creature.body_parts[part].current_hp > 0:
+                        all_destroyed = False
+                        break
+                else:
+                    all_destroyed = False
+                    break
+            if all_destroyed:
+                return False  # All parts in this tuple are destroyed, hence action is not usable
+        return True
+    
+    
 # =============================================================================
 # =============================================================================
 # # Character 
@@ -192,12 +261,15 @@ class Character:
         self.armor = 1
         self._spell_rating_base = 1
         self._ritual_rating_base = 1
+        self._skill_rating_base = 1
         self.block = 0.1
         self.parry = 0.1
         self.perks = []
         self.spells_known = []
         self.available_spells = []
+        self.available_skills = []
         self.rituals_known = []
+        self.conditions = set()
         self.body_parts = {
             'Torso': BodyPart('Torso', 100, 5, is_vital=True),
             'Left Arm': BodyPart('Left Arm', 50,3,dodge_offset=0.05),
@@ -231,29 +303,16 @@ class Character:
 
         def take_damage(self, body_part_name, damage):
             if body_part_name in self.body_parts:
-                critical_destroyed = self.body_parts[body_part_name].take_damage(damage)
-                if critical_destroyed:
-                    print(f"Critical body part {body_part_name} destroyed! Critical situation!")
-                self.body_parts[body_part_name].update_condition()
-            else:
-                print(f"No such body part: {body_part_name}")
+                self.body_parts[body_part_name].take_damage(damage)
+                self.body_parts[body_part_name].update_conditions()
+
 
         
         
     def copy_for_combat(self):
         """Create a deep copy of the character for combat purposes."""
         return copy.deepcopy(self)
-    
-    def update_after_combat(self, combat_character):
         
-        self.current_endurance = combat_character.current_endurance
-        self.current_head_hp = combat_character.current_head_hp
-        self.current_torso_hp = combat_character.current_torso_hp
-        self.current_larm_hp = combat_character.current_larm_hp
-        self.current_rarm_hp = combat_character.current_torso_hp
-        self.current_legs_hp = combat_character.current_legs_hp
-        
-    
     @property
     def strength(self):
         return self._strength
@@ -302,6 +361,13 @@ class Character:
     @property
     def ritual_rating(self):
         return self._ritual_rating_base + 1 * self.faith
+    
+    @property
+    def skill_rating(self):
+        return self._skill_rating_base + 1 * max(self.strength,self.agility)
+    
+    def get_all_body_parts(self):
+        return list(self.body_parts.values())
 
     def equip_item(self, item):
         # Check if an item of the same type is already equipped and unequip it first
@@ -349,15 +415,13 @@ class Character:
             return self.agility
 
         return 0
-    def get_attack_damage(self, chosen_weapon_name):
-        # Search for the weapon by name in available_weapons
-        weapon = next((item for item in self.available_weapons if item.name == chosen_weapon_name), None)
-        if weapon:
+    def get_attack_damage(self, chosen_weapon):
+        if chosen_weapon:
             # Calculate damage using the found weapon's damage range and character's stats
-            return random.randint(weapon.min_damage, weapon.max_damage) + self.get_attack_modifier(weapon)
+            return random.randint(chosen_weapon.min_damage, chosen_weapon.max_damage) + self.get_attack_modifier(chosen_weapon)
         else:
             # Optionally handle the case where no weapon is found
-            return 1 + self.get_attack_modifier(weapon)  # Default damage or consider raising an exception
+            return 1 + max(self.strength,self.agility)  # Default damage or consider raising an exception
         
         
     def check_vital_parts(self):
@@ -373,13 +437,13 @@ class Character:
         return [part for name, part in self.body_parts.items() if name != target_part_name]
     
     def reduce_all_cds(self):
-        for spell in self.available_spells:
+        for spell in self.available_spells + self.available_skills:
             spell.reduce_cooldown()
     
     def reduce_allbutchosen_cds(self,chosen_spell):
-        for spell in self.available_spells:
+        for spell in self.available_spells + self.available_skills:
             if spell.name != chosen_spell:
-                spell.reduce_cooldown
+                spell.reduce_cooldown()
 
     def has_spells_available(self):
         # Check if any spells are available to cast
@@ -387,6 +451,28 @@ class Character:
             if spell.cooldown_timer == 0 and spell.uses_remaining > 0:
                 return True
         return False
+    
+    def has_skills_available_total(self):
+        for skill in self.available_skills:
+            if skill.cooldown_timer == 0 and skill.uses_remaining > 0:
+                return True
+        return False
+    
+    def has_skills_available(self,weapon_family):
+        # Check if any spells are available to cast
+        for skill in self.available_skills:
+            if skill.cooldown_timer == 0 and skill.uses_remaining > 0 and skill.required_weapon_family == weapon_family:
+                return True
+        return False
+
+    def filter_weapons_by_skills(self):
+        # Gather all required weapon families from skills
+        required_families = {skill.required_weapon_family for skill in self.available_skills}
+
+        # Filter weapons where their family is needed by at least one skill
+        filtered_weapons = [weapon for weapon in self.available_weapons if weapon.weapon_family in required_families]
+
+        return filtered_weapons
 
 # =============================================================================
 # =============================================================================
@@ -409,7 +495,8 @@ class Creature:
         self.perks = []
         self.spells_known = []
         self.inventory = []
-        self.initiative = 20
+        self.conditions = set()
+        self.initiative = 40
         self.initial_initiative = 0
         self.body_parts = {
             'Torso': BodyPart('Torso', 35, 5, is_vital=True),
@@ -421,7 +508,7 @@ class Creature:
         }
         for part in self.body_parts.values():
             part.owner = self
-#        self.available_actions = [bite_attack,claw_attack]
+        self.available_actions = []
 
     @property
     def dodge(self):
@@ -441,6 +528,14 @@ class Creature:
     def get_all_body_parts(self):
         return list(self.body_parts.values())
 
+    def reduce_allbutchosen_cds(self,chosen_action):
+        for action in self.available_actions:
+            if action.name != chosen_action.name:
+                action.reduce_cooldown()
+
+
+
+
 # =============================================================================
 # =============================================================================
 # # ITEMS
@@ -448,15 +543,33 @@ class Creature:
 # =============================================================================
 
 class Item:
-    def __init__(self, name, item_type,weight_type = None, min_damage=None,max_damage=None, stat_modifiers=None, special_abilities=None):
+    def __init__(self, name, item_type,stat_modifiers=None, special_abilities=None):#,weight_type = None, min_damage=None,max_damage=None, stat_modifiers=None, special_abilities=None):
         self.name = name
         self.item_type = item_type
-        self.weight_type = weight_type
-        self.min_damage = min_damage
-        self.max_damage = max_damage
         self.stat_modifiers = stat_modifiers if stat_modifiers else []
         self.special_abilities = special_abilities if special_abilities else []
 
+class Weapon(Item):
+    def __init__(self, name,item_type,weapon_family,weapon_type,weight_type,thmin_damage = 0,thmax_damage = 0,crit_chance = 0,armor = 0,negblock_parry = 1,crit_damage = 0,arpen = 0,initiative = 0,accuracy = 0,parry_block = 0, min_damage=0,max_damage=0, stat_modifiers=None, special_abilities=None):
+        super().__init__(name, item_type, stat_modifiers, special_abilities)
+        self.weight_type = weight_type
+        self.weapon_family = weapon_family
+        self.weapon_type = weapon_type
+        self.min_damage = min_damage
+        self.thmin_damage = thmin_damage
+        self.thmax_damage = thmax_damage
+        self.max_damage = max_damage
+        self.parry_block = parry_block
+        self.accuracy = accuracy
+        self.initiative = initiative
+        self.arpen = arpen
+        self.crit_damage = crit_damage
+        self.crit_chance = crit_chance
+        self.armor = armor
+        self.negblock_parry = negblock_parry
+
+        
+        
 def increase_speed(character):
     character.agility += 1 
 def heal(character):
@@ -468,11 +581,12 @@ def create_item(name):
         # Look for the item by name
         for item in category:
             if item.name == name:
+                if item.item_type == "weapon":
+                    return item
                 # Found the item, create a new instance and return it
-                return Item(item.name, item.item_type,item.weight_type, item.min_damage, item.max_damage, item.stat_modifiers, item.special_abilities)
+                return item#Item(item.name, item.item_type,item.weight_type, item.min_damage, item.max_damage, item.stat_modifiers, item.special_abilities)
     # If item not found, return None or raise an error
     return None
-
 
 # =============================================================================
 # GAME DEF
@@ -483,10 +597,9 @@ items = {
         Item("Boots of Swiftness","armor",stat_modifiers=[("agility", 1)],special_abilities=[increase_speed])
     ],
     "weapon": [
-        Item("Shortsword","weapon",weight_type = "medium",min_damage = 5,max_damage = 10,stat_modifiers=[("strength",2)]),     
-        Item("Axe","weapon",weight_type = "heavy",min_damage = 5,max_damage = 14,stat_modifiers=[("strength",2)]),
-        Item("Bow","weapon",min_damage = 5,max_damage = 5,stat_modifiers=[("agility",2)]),
-        Item("Quarterstaff","weapon",weight_type = "light",min_damage = 3,max_damage = 8,stat_modifiers=[("strength",2)]) 
+        Weapon("Shortsword","weapon","blade","arming sword","medium",min_damage = 5,max_damage = 10),     
+        Weapon("Axe","weapon","ax","war axe","heavy",min_damage = 5,max_damage = 14),
+        Weapon("Quarterstaff","weapon","defense","quarterstaff","light",min_damage = 3,max_damage = 8) 
     ],
     "consumable": [
         Item("potion","consumable",special_abilities=[heal])
@@ -719,7 +832,8 @@ button_paths_test = []
 button_paths_ids_test = []
 button_paths_combat = []
 button_paths_ids_combat = []
-
+base_creatures = []
+last_weapon_used = None
 
 
 
@@ -746,6 +860,80 @@ def toggle_debug_mode():
 # FUNCIONES
 # =============================================================================
 
+# =============================================================================
+# =============================================================================
+# # creature effects
+# =============================================================================
+# =============================================================================
+
+def calc_modifier_creature(character,creature,extra = 0):
+     modifier = 1 - extra
+     if creature.iscursed:
+        modifier - 0.2         
+     return modifier
+
+def creature_tail_attack(target,creature,min_damage = 5,max_damage = 10, multiplier = 1):
+    damage = random.randint(min_damage, max_damage)
+    flag = dodge_block_parry(creature,target)
+    text = ""
+    if flag == "dodged":
+        damage = 0
+        text += f"	The {creature.name} attacks your {target.name} with its tail, but you manage to dodge!"
+    elif flag == "blocked":
+        damage_blocked = int(0.5*damage)
+        damage = damage*0.5
+        damage = int(damage-target.armor- last_weapon_used.armor)
+        text += f"	You block the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)(reduced {target.armor} damage by your armor)"
+    elif flag == "parried":
+        damage_parried = int(damage*0.25)
+        damage = damage*0.75
+        damage = int(damage-target.armor- last_weapon_used.armor)
+        text += f"	You parry the {creature.name} tail's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)(reduced {target.armor} damage by your armor) "
+    else:
+        damage = int(damage-target.armor- last_weapon_used.armor)
+        text += f"	The {creature.name} strikes your {target.name} with its tail for {damage} damage(reduced {target.armor} damage by your armor)"
+        
+        
+    target.current_hp -= damage
+    target.owner.current_endurance -= damage
+    return text
+    
+def creature_claw_attack(target,creature,min_damage = 2,max_damage = 5, multiplier = 1):
+    damage = damage = random.randint(min_damage, max_damage)
+    flag = dodge_block_parry(creature,target)
+    text = ""
+    if flag == "dodged":
+        damage = 0
+        text += f"	The {creature.name} attacks your {target.name} with its claw, but you manage to dodge!"
+    elif flag == "blocked":
+        damage_blocked = int(0.5*damage)
+        damage = damage*0.5
+        damage = int(damage-target.armor- last_weapon_used.armor)
+        text += f"	You block the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_blocked} damage mitigated)(reduced {target.armor} damage by your armor)"
+    elif flag == "parried":
+        damage_parried = int(damage*0.25)
+        damage = damage*0.75
+        damage = calc_modifier_creature(target,creature,extra = 0.25)
+        damage = int(damage-target.armor - last_weapon_used.armor)
+        text += f"	You parry the {creature.name} claw's attack to your {target.name}, receiveing {damage} ({damage_parried} gets mitigated)(reduced {target.armor} damage by your armor)" 
+    else:
+        damage = int(damage-target.armor - last_weapon_used.armor)
+        text += f"	The {creature.name} strikes your {target.name} with its claw for {damage} damage(reduced {target.armor} damage by your armor) "
+          
+    target.current_hp = target.current_hp - damage
+    target.owner.current_endurance -= damage
+    return text
+
+
+def creature_swipe(target,creature,min_damage = 2,max_damage = 5, multiplier = 1):
+    damage = damage = random.randint(min_damage, max_damage)
+    #flag = dodge_block_parry(target, creature)
+    text = ""
+    text += f"	The {creature.name} swipes at you with its claws for {damage} damage"
+    for body_part in target.get_all_body_parts():
+        body_part.current_hp -= damage
+    target.current_endurance -= damage
+    return text
 
 # =============================================================================
 # =============================================================================
@@ -761,40 +949,40 @@ def spell_fireball(target,character,spell_level,multiplier = 1):
             damage = random.randint(4, 6)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
         case 2:
             damage = random.randint(6, 8)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
         case 3:
             damage = random.randint(12, 16)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
             aoe_damage = math.ceil(damage/10)
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.3:
                 
                 for body_part in target.owner.get_other_body_parts(target.name):
                     body_part.current_hp -= aoe_damage
-                text = text + f"and {aoe_damage} damage to all other body parts"
+                text = text + f"	and {aoe_damage} damage to all other body parts"
         case 4:
             damage = random.randint(16, 20)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
             aoe_damage = math.ceil(damage/10)
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.4:
                 
                 for body_part in target.owner.get_other_body_parts(target.name):
                     body_part.current_hp -= aoe_damage 
-                text = text + f"and {aoe_damage} damage to all other body parts"
+                text = text + f"	and {aoe_damage} damage to all other body parts"
         case 5:
             damage = random.randint(22, 30)
             target.current_hp -= damage
             target.owner.current_endurance -= damage
             aoe_damage = math.ceil(damage/10)
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
             if random.random() < 0.5:
                 
                 for body_part in target.owner.get_other_body_parts(target.name):
@@ -804,7 +992,7 @@ def spell_fireball(target,character,spell_level,multiplier = 1):
             damage = 1
             target.current_hp -= damage
             target.owner.current_endurance -= damage
-            text = f"Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
     
     return text
 
@@ -816,7 +1004,7 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
         case 1:
             damage = random.randint(3, 4)
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.current_endurance -= damage
@@ -824,61 +1012,114 @@ def spell_fissure(target,character,spell_level,multiplier = 1):
         case 2:
             damage = random.randint(4, 5)
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.current_endurance -= damage
         case 3:
             damage = random.randint(6, 8)
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             
             target.current_endurance -= damage
             if random.random() < 0.2:
-                
-                for body_part in target.get_all_body_parts():
-                    body_part.condition.append("burn")
+                target.conditions.add(("burn",3,character.level))
                 text = text + " and burns them"
         case 4:
             damage = random.randint(8, 10)
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.current_endurance -= damage
-            if random.random() < 0.2:
-                
-                for body_part in target.get_all_body_parts():
-                    body_part.condition.append("burn")
+            if random.random() < 0.3:
+                target.conditions.add(("burn",3,character.level))
                 text = text + " and burns them"
         case 5:
             damage = random.randint(11, 15)
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.current_endurance -= damage
-            if random.random() < 0.2:
-                
-                for body_part in target.get_all_body_parts():
-                    body_part.condition.append("burn")
+            if random.random() < 0.4:
+                target.conditions.add(("burn",3,character.level))
                 text = text + " and burns them"                    
         case 0:
             damage = 1
             damage = damage * multiplier
-            text = f"Your fissure deals {damage} damage to {target.name} body parts"
+            text = f"	Your fissure deals {damage} damage to {target.name} body parts"
             for body_part in target.get_all_body_parts():
                 body_part.current_hp -= damage
             target.owner.current_endurance -= damage
     
     return text
     
-    
-    
-    
-    
+# =============================================================================
+# =============================================================================
+# # SKILLS 
+# =============================================================================
+# =============================================================================
+
+def skill_wallop(target,character,spell_level,multiplier = 1):
+    damage = character.get_attack_damage(last_weapon_used)
+    text = ""
+    match spell_level:
+        case 1:
+            damage = math.ceil(damage * 0.6)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
+            if random.random() < 0.5:
+                text += "and blind them"
+                target.owner.conditions.add(("blind",1))
+
+        case 2:
+            damage = math.ceil(damage * 0.7)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
+            if random.random() < 0.5:
+                text += "and blind them"
+                target.owner.conditions.add(("blind",1))
+        case 3:
+            damage = math.ceil(damage * 0.8)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
+            if random.random() < 0.65:
+                text += "and blind them"
+                target.owner.conditions.add(("blind",1))
+        case 4:
+            damage = math.ceil(damage * 0.9)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
+            if random.random() < 0.65:
+                text += "and blind them"
+                target.owner.conditions.add(("blind",1))
+        case 5:
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
+            if random.random() < 0.65:
+                text += "and blind them"
+                target.owner.conditions.add(("blind",1))               
+        case 0:
+            damage = 1
+            target.current_hp -= damage
+            text = f"	Your wallop deals {damage} damage to {target.owner.name} {target.name}"
+            if random.random() < 0.5:
+                text += "and blind them"
+                target.owner.conditions.add(("blind",1))
+
+    return text
+
+
+
+
 # =============================================================================
 # =============================================================================
 # # others
@@ -888,8 +1129,6 @@ def play_random_sound(category):
     if category in sound_effects:
         sound_to_play = random.choice(sound_effects[category])
         sound_to_play.play()
-    else:
-        print(f"No such category: {category}")
 
 
 def generate_dynamic_text(template_text, options_dict):
@@ -952,6 +1191,16 @@ def basic_attack(character,creature,chosen_weapon):
      damage = character.get_attack_damage(chosen_weapon)
      return damage
 
+def create_hybrid_creature():
+    creature_parts = ['front_legs', 'back_legs', 'torso', 'head', 'tail', 'wings']
+    hybrid_creature = {}
+    
+    for part in creature_parts:
+        selected_creature = random.choice(list(base_creatures.keys()))
+        hybrid_creature[part] = base_creatures[selected_creature].get(part, 'None')
+    
+    return hybrid_creature
+
 def clean_combat_buttons():
     global button_paths_combat, button_paths_ids_combat
     for btn in button_paths_combat:
@@ -962,20 +1211,31 @@ def clean_combat_buttons():
     window.blit(bg_middle, (800/3, 60))
     
 
-def choose_weapon(ui_manager,window,character):
+def choose_weapon(ui_manager,window,character,filtered_weapons = None):
     global button_paths_combat, button_paths_ids_combat
     clock = pygame.time.Clock()  # Ensure you have a clock to manage updates
 
     if button_paths_combat:
         clean_combat_buttons()
-    for index, weapon in enumerate(character.available_weapons):
-        btn = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((300, 100 + index * 60), (200, 50)),
-            text=weapon.name,
-            manager=ui_manager    
-        )
-        button_paths_combat.append(btn)
-        button_paths_ids_combat.append((weapon.name, index))
+    
+    if filtered_weapons:
+        for index, weapon in enumerate(filtered_weapons):
+            btn = pygame_gui.elements.UIButton(
+                relative_rect=pygame.Rect((300, 100 + index * 60), (200, 50)),
+                text=weapon.name,
+                manager=ui_manager    
+            )
+            button_paths_combat.append(btn)
+            button_paths_ids_combat.append((weapon, index))
+    elif filtered_weapons != []:        
+        for index, weapon in enumerate(character.available_weapons):
+            btn = pygame_gui.elements.UIButton(
+                relative_rect=pygame.Rect((300, 100 + index * 60), (200, 50)),
+                text=weapon.name,
+                manager=ui_manager    
+            )
+            button_paths_combat.append(btn)
+            button_paths_ids_combat.append((weapon, index))
 
     weapon_chosen = None
     while weapon_chosen is None:
@@ -1044,6 +1304,51 @@ def choose_spell(ui_manager,window,character):
     clean_combat_buttons()
     return chosen_spell
 
+def choose_skill(ui_manager,window,character):
+    global button_paths_combat, button_paths_ids_combat,last_weapon_used
+    clock = pygame.time.Clock()  # Ensure you have a clock to manage updates
+
+    if button_paths_combat:
+        clean_combat_buttons()
+    
+    filtered_weapons = character.filter_weapons_by_skills()
+    
+    chosen_weapon = choose_weapon(ui_manager,window,character,filtered_weapons)
+        
+    filtered_skills = [skill for skill in character.available_skills if skill.uses_remaining > 0 and skill.cooldown_timer == 0 and skill.required_weapon_family == chosen_weapon.weapon_family]
+    for index, skill in enumerate(filtered_skills):
+        btn = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect((300, 100 + index * 60), (200, 50)),
+            text=skill.name,
+            manager=ui_manager    
+        )
+        button_paths_combat.append(btn)
+        button_paths_ids_combat.append((skill.name, index))
+
+    chosen_skill = None
+    while chosen_skill is None:
+        time_delta = clock.tick(60)/1000.0
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return None
+            if event.type == pygame_gui.UI_BUTTON_PRESSED:
+                for i, button in enumerate(button_paths_combat):
+                    if event.ui_element == button:
+                        chosen_skill,index = button_paths_ids_combat[i]  # Retrieve the BodyPart instance
+                        clean_combat_buttons()
+                        break
+
+            ui_manager.process_events(event)
+        
+        ui_manager.update(time_delta)
+        ui_manager.draw_ui(window)
+        pygame.display.update()
+    
+    last_weapon_used = chosen_weapon
+    # Clean up buttons after choice
+    clean_combat_buttons()
+    return chosen_skill
 
 def body_part_targeting(ui_manager,window,target):
     global button_paths_combat, button_paths_ids_combat
@@ -1085,17 +1390,6 @@ def body_part_targeting(ui_manager,window,target):
     clean_combat_buttons()
     return bodypart_chosen
    
-    
-        
-        
-        
-        
-
-def claw_attack(character,creature):
-    damage = random.randint(4, 8)
-   # character.current_endurance = character.current_endurance - damage
-    return damage
-
 def combat_background(ui_manager,window):
     window_width, window_height = 800, 600
     # Calculate the height for each section
@@ -1123,6 +1417,11 @@ def combat_background(ui_manager,window):
 def wait_for_player_action(ui_manager,window,character,creature):
     action = None
     chosen_weapon_spell = None
+    if not character.has_spells_available():
+        button_Spell.disable()
+    if not character.has_skills_available_total():
+        button_Skill.disable()
+        
     # Event loop to wait for player's action
     while action is None:
         time_delta = clock.tick(60)/1000.0
@@ -1141,6 +1440,11 @@ def wait_for_player_action(ui_manager,window,character,creature):
                     if character.has_spells_available():    
                         action = "spell"
                         chosen_weapon_spell = choose_spell(ui_manager, window, character)
+                        
+                if event.ui_element == button_Skill:
+                    if character.has_spells_available():    
+                        action = "skill"
+                        chosen_weapon_spell = choose_skill(ui_manager, window, character)
             # Pass the event to the UIManager
             ui_manager.process_events(event)
 
@@ -1152,8 +1456,56 @@ def wait_for_player_action(ui_manager,window,character,creature):
         pygame.display.update()
 
         clock.tick(60)
-
+    
+    button_Spell.enable()
+    button_Skill.enable()
     return action,chosen_weapon_spell
+
+def resolve_character_conditions(character):
+    text = ""
+    updated_conditions = set()
+    for conditions in character.conditions:
+        name,turns, *extras = conditions
+        if name == "bleed":
+            character.current_endurance -= extras[0] if extras else 0
+            text += f"You bleed for {extras[0]} damage"
+        if name == "poison":
+            character.current_endurance -= extras[0] if extras else 0
+            text += f"The poison deals {extras[0]} damage"
+        if name == "burn":
+            character.current_endurance -= extras[0] if extras else 0
+            text += f"You burn for {extras[0]} damage"
+        if turns > 1:
+            updated_condition = (name, turns - 1) + tuple(extras)
+            updated_conditions.add(updated_condition)
+        elif turns == 1:
+            text += f"{name} condition has ended"
+    character.conditions = updated_conditions
+    return text
+
+def resolve_creature_conditions(creature):
+    text = ""
+    updated_conditions = set()
+    for conditions in creature.conditions:
+        name,turns, *extras = conditions
+        if name == "bleed":
+            creature.current_endurance -= extras[0] if extras else 0
+            text += f"{creature.name} bleeds for {extras[0]} damage"
+        if name == "poison":
+            creature.current_endurance -= extras[0] if extras else 0
+            text += f"The poison deals {extras[0]} damage"
+        if name == "burn":
+            creature.current_endurance -= extras[0] if extras else 0
+            #if "fan the flames" in character.perks:
+                
+            text += f"The {creature.name} burn for {extras[0]} damage"
+        if turns > 1:
+            updated_condition = (name, turns - 1) + tuple(extras)
+            updated_conditions.add(updated_condition)
+        elif turns == 1:
+            text += f"{name} condition has ended"
+    creature.conditions = updated_conditions
+    return text
 
 def process_character_action(ui_manager,window,character_action,chosen_weapon_spell,character,creture,left_info_box,right_info_box,character_turn_number):
     text = f"Turn {character_turn_number}                " 
@@ -1168,19 +1520,19 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
                 text += f"\n Your attack at {bodypart.name} misses the {creature.name}, dealing no damage!"
                 sound_effects['MissMelee1'].play()
             elif flag == "blocked":
-                damage_blocked = 0.5*damage
-                damage = damage*0.5
-                damage = damage - bodypart.armor
+                damage_blocked = 0.5* chosen_weapon_spell.negblock_parry
+                damage = int(damage*0.5)
+                damage = max(damage - bodypart.armor,0)
                 text += f"\n Your attack at {bodypart.name} was blocked, dealing {damage}! ({damage_blocked} damage lost)({bodypart.armor} reduced by armor)"
                 play_random_sound("soundcategoryaxe")
             elif flag == "parried":
-                damage_parried = damage*0.25
-                damage = damage*0.75
-                damage = damage - bodypart.armor
+                damage_parried = int(damage*0.25)
+                damage = int(damage*0.75)
+                damage = max(damage - bodypart.armor,0)
                 text += f"\n Your attack at {bodypart.name} was parried, dealing {damage}! ({damage_parried} damage lost)({bodypart.armor} reduced by armor)" 
             else:
-                damage = damage - bodypart.armor
-                text += f"\n Your {chosen_weapon_spell} hits the {creature.name}'s {bodypart.name} for {damage} damage ({bodypart.armor} reduced by armor)"
+                damage = max(damage - bodypart.armor,0)
+                text += f"\n Your {chosen_weapon_spell.name} hits the {creature.name}'s {bodypart.name} for {damage} damage ({bodypart.armor} reduced by armor)"
                # if chosen_weapon == "Axe":
                 #    sound_effects["soundcategoryaxe"].play()
                # elif chosen_weapon == "Quarterstaff":
@@ -1190,54 +1542,76 @@ def process_character_action(ui_manager,window,character_action,chosen_weapon_sp
                 elif chosen_weapon_spell == "Quarterstaff":
                     play_random_sound("soundcategorystaff")
             
-            creature.current_endurance -= damage
-            bodypart.current_hp = bodypart.current_hp - damage
-            left_info_box = update_combat_text(left_info_box, text)
+            creature.current_endurance -= max(damage,0)
+            bodypart.current_hp -= damage
+            #left_info_box = update_combat_text(left_info_box, text)
             character.reduce_all_cds()
             
         case "spell":
             chosen_spell = next((spell for spell in character.available_spells if spell.name == chosen_weapon_spell), None)
+            target = creature
             if chosen_spell.targeted:
                 target = body_part_targeting(ui_manager, window, creature)
-            else:
-                target = creature
             spell_text = chosen_spell.cast(character,creature,target)
             text = text + spell_text
-            left_info_box = update_combat_text(left_info_box, text)  
+            #left_info_box = update_combat_text(left_info_box, text)  
             character.reduce_allbutchosen_cds(chosen_weapon_spell)
-        
+        case "skill":
+            chosen_skill =  next((spell for spell in character.available_skills if spell.name == chosen_weapon_spell), None)
+            target = creature
+            if chosen_skill.targeted:
+                target = body_part_targeting(ui_manager, window, creature)
+            skill_text = chosen_skill.use_skill(character,creature,target)
+            text = text + skill_text
+            #left_info_box = update_combat_text(left_info_box, text)  
+            character.reduce_allbutchosen_cds(chosen_weapon_spell)
+    
+    
+    condition_text = resolve_character_conditions(character)
+    text += condition_text        
+    left_info_box = update_combat_text(left_info_box, text)        
     return left_info_box
 
-def process_creature_action(creature_action,character,creture,left_info_box,right_info_box,creature_turn_number):
-    damage = claw_attack(character, creature)
-    flag = dodge_block_parry(character, creature)
+def creature_auto_target(character):
+    available_targets = [part for part_name, part in character.body_parts.items() if part.current_hp > 0]
+    chosen_target = random.choices(available_targets,k=1)[0]
+    return chosen_target
+
+def choose_creature_action(creature):
+    
+    available_actions = [action for action in creature.available_actions if action.is_usable(creature)]   
+    weights = [action.priority for action in available_actions]
+    
+    chosen_action = random.choices(available_actions, weights=weights, k=1)[0]
+    
+    return chosen_action
+
+
+
+            
+def process_creature_action(creature_action,character,creature,left_info_box,right_info_box,creature_turn_number):
     text = f"Turn {creature_turn_number}                "
-    if flag == "dodged":
-        damage = 0
-        text += "\n The Creature lounges, but you manage to dodge!"
-    elif flag == "blocked":
-        damage_blocked = 0.5*damage
-        damage = damage*0.5
-        text += f"\n You block the Creature attack, receiveing {damage} ({damage_blocked} damage mitigated)"
-    elif flag == "parried":
-        damage_parried = damage*0.25
-        damage = damage*0.75
-        text += f"\n You parry the Creature attack, receiveing {damage} ({damage_parried} gets mitigated)" 
-    else:
-        text += f"\n The Creature strikes you for {damage} damage"
-        
-        
-    character.current_endurance = character.current_endurance - damage
+    chosen_action = choose_creature_action(creature)
+    target = character
+    if chosen_action.targeted:
+        target =creature_auto_target(character)
+    action_text = chosen_action.cast(character,creature,target)
+    creature.reduce_allbutchosen_cds(chosen_action)
+    condition_text = resolve_creature_conditions(creature)
+    text = text + action_text + condition_text
+    
     right_info_box = update_combat_text(right_info_box, text)
     return right_info_box
 
 def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_box):
+    global last_weapon_used
     character_turn = False
     creature_turn = False
     character_turn_number = 0
     creature_turn_number = 0
+    last_weapon_used = None
 
-    while character.current_endurance>0 and creature.endurance>0 and not creature.check_vital_parts() and not character.check_vital_parts():
+    while character.current_endurance>0 and creature.current_endurance>0 and not creature.check_vital_parts() and not character.check_vital_parts():
         # Increase both character and creature's initial initiative
         character.initial_initiative += character.initiative
         creature.initial_initiative += creature.initiative
@@ -1252,8 +1626,11 @@ def combat_loop(ui_manager,window,character,creature,left_info_box,right_info_bo
 
         # Handle the character's turn
         if character_turn:
+            last_weapon_used = None
             character_turn_number += 1
-            character_action,chosen_weapon_spell = wait_for_player_action(ui_manager,window,character,creature)  # Function to wait for player to press a button
+            character_action,chosen_weapon_spell = wait_for_player_action(ui_manager,window,character,creature)# Function to wait for player to press a button
+            if character_action == "attack":
+                last_weapon_used = chosen_weapon_spell #next((item for item in character.available_weapons if item.name == chosen_weapon_spell), None)
             left_info_box = process_character_action(ui_manager,window,character_action,chosen_weapon_spell, character, creature,left_info_box,right_info_box,character_turn_number)
             character_turn = False  # Reset the flag after the character's turn is processed
 
@@ -1295,7 +1672,8 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     info_texts = [
         f"Endurance: {character.current_endurance}/{character.endurance}",
         f"Head: {character.body_parts['Head'].current_hp}/{character.body_parts['Head'].max_hp}  Torso: {character.body_parts['Torso'].current_hp}/{character.body_parts['Torso'].max_hp}",
-        f"L. Arm: {character.body_parts['Left Arm'].current_hp}/{character.body_parts['Left Arm'].max_hp}  R. Arm: {character.body_parts['Right Arm'].current_hp}/{character.body_parts['Right Arm'].max_hp}  Legs: {character.body_parts['Legs'].current_hp}/{character.body_parts['Legs'].max_hp}"
+        f"L. Arm: {character.body_parts['Left Arm'].current_hp}/{character.body_parts['Left Arm'].max_hp}  R. Arm: {character.body_parts['Right Arm'].current_hp}/{character.body_parts['Right Arm'].max_hp}",
+        f"Legs: {character.body_parts['Legs'].current_hp}/{character.body_parts['Legs'].max_hp}"
     ]
     font = pygame.font.Font(font_path, 17)
     # Calculate the position and size for the info box
@@ -1348,6 +1726,9 @@ def display_combat_character(ui_manager,window,character,position,font_path ="Ug
     
     font = pygame.font.Font(font_path, 30)
     creature_text = f"Endurance:{creature.current_endurance}"
+    for part in creature.body_parts.values():
+        if part.current_hp <= 0:
+            creature_text += f"  {part.name} DESTROYED"  # Return True if any vital part is destroyed
     text_surface = font.render(creature_text, True, (128, 128, 128))
     text_width, text_height = text_surface.get_size()
     box_x, box_y = 10, 10
@@ -1401,7 +1782,7 @@ def update_combat_text(surface, text, clear_surface=True):
         window.blit(surface, (0, 60))
         # Clear the previous text by filling the surface with the same translucent color
         new_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        new_surface.fill((0, 0, 0, 128))
+        new_surface.fill((0, 0, 0, 255))
     else:
         new_surface = surface
     blit_text(new_surface, text, (10, 10), (255, 255, 255)) 
@@ -1571,11 +1952,20 @@ testy.available_weapons.append(quarterstaff)
 
 fireball = Spell("Fireball", [spell_fireball], 5, 1)
 fissure = Spell("Fissure",[spell_fissure],5,1,targeted= False)
-creature = Creature("Giant Rat")
+wallop = Spell("Wallop",[skill_wallop],5,1,required_weapon_family = "defense")
 character_window_reference = None
 current_slide_text = current_slide.text
 testy.available_spells.append(fireball)
 testy.available_spells.append(fissure)
+testy.available_skills.append(wallop)
+creature = Creature("Giant Rat Scorpion")
+creature_tail_attack = CreatureAction("Tail_Attack",[creature_tail_attack],2,priority = 2, required_parts=[("Tail",)])
+creature_swipe = CreatureAction("Swipe",[creature_swipe],2,priority = 3, required_parts=[("Right Arm","Left Arm")],targeted = False)
+creature_claw_attack = CreatureAction("Claw_Attack",[creature_claw_attack],0)
+creature.available_actions.append(creature_tail_attack)
+creature.available_actions.append(creature_swipe)
+creature.available_actions.append(creature_claw_attack)
+
 
 
 # =============================================================================
