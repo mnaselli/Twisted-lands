@@ -1296,9 +1296,12 @@ testy = Character("Testycle","Test character",1,1,1,1)
 shortsword = create_item("Shortsword")
 axe = create_item("Axe")
 quarterstaff = create_item("Quarterstaff")
+katar = create_item("Katar")
 testy.available_weapons.append(shortsword)
 testy.available_weapons.append(axe)
 testy.available_weapons.append(quarterstaff)
+testy.available_weapons.append(katar)
+
 
 fireball = Spell("Fireball", [spell_fireball], 5, 1)
 fissure = Spell("Fissure",[spell_fissure],5,1,targeted= False)

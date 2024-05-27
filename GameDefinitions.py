@@ -10,9 +10,15 @@ items = {
         Item("Boots of Swiftness","armor",stat_modifiers=[("agility", 1)])
     ],
     "weapon": [
-        Weapon("Shortsword","weapon","blade","arming sword","medium",min_damage = 5,max_damage = 10),     
+        Weapon("Shortsword","weapon","blade","arming sword","medium",min_damage = 5,max_damage = 10),
+        Weapon("Hatchet","weapon","ax","hatchet","light",min_damage = 4,max_damage = 11),
+        Weapon("Dagger","weapon","blade","dagger","light",min_damage = 4,max_damage = 8, accuracy = 0.08,),
+        Weapon("Stiletto","weapon","tip","stiletto","light",min_damage = 4,max_damage = 8, crit_damage = 0.25),
+        Weapon("Katar","weapon","reach","katar","light",min_damage = 4,max_damage = 8, arpen = 3),
+        Weapon("Club","weapon","bludgeon","club","light",min_damage = 4,max_damage = 8,negblock_parry = 0.5),
+        Weapon("Lathi","weapon","defense","lathi","light",min_damage = 3,max_damage = 8, armor = 2),
         Weapon("Axe","weapon","ax","war axe","heavy",min_damage = 5,max_damage = 14),
-        Weapon("Quarterstaff","weapon","defense","quarterstaff","light",min_damage = 3,max_damage = 8) 
+        Weapon("Quarterstaff","weapon","defense","quarterstaff","medium",min_damage = 3,max_damage = 8) 
     ],
     "consumable": [
         Item("potion","consumable")
