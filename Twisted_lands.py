@@ -275,6 +275,184 @@ def creature_swipe(target,creature,min_damage = 2,max_damage = 5, multiplier = 1
 # =============================================================================
 # =============================================================================
 
+def spell_holyfire(target,character,spell_level,multiplier = 1):
+    damage = 0
+    text = ""
+    extra_damage = 0
+    match spell_level:
+        case 1:
+            damage = random.randint(10, 18)
+            
+            if len(target.conditions) > 0:
+                extra_damage += len(target.conditions)
+                set.clear(target.conditions)
+            damage += extra_damage
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your holy fire deals {damage} damage to {target.owner.name} {target.name} ({extra_damage} extra damage)"
+        case 2:
+            damage = random.randint(12, 21)
+            if len(target.conditions) > 0:
+                extra_damage += len(target.conditions)
+                set.clear(target.conditions)
+            damage += extra_damage
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your holy fire deals {damage} damage to {target.owner.name} {target.name} ({extra_damage} extra damage)"
+        case 3:
+            damage = random.randint(14, 24)
+            if len(target.conditions) > 0:
+                extra_damage += len(target.conditions) *2
+                set.clear(target.conditions)
+            damage += extra_damage
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your holy fire deals {damage} damage to {target.owner.name} {target.name} ({extra_damage} extra damage)"
+        case 4:
+            damage = random.randint(16, 28)
+            if len(target.conditions) > 0:
+                extra_damage += len(target.conditions) *2
+                set.clear(target.conditions)
+            damage += extra_damage
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your holy fire deals {damage} damage to {target.owner.name} {target.name} ({extra_damage} extra damage)"
+
+        case 5:
+            damage = random.randint(17, 29)
+            if len(target.conditions) > 0:
+                extra_damage += len(target.conditions)*3
+                set.clear(target.conditions)
+            damage += extra_damage
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your holy fire deals {damage} damage to {target.owner.name} {target.name} ({extra_damage} extra damage)"
+                  
+        case 0:
+            damage = 1
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+    
+    return text
+
+def spell_arcingbolt(target,character,spell_level,multiplier = 1):
+    damage = 0
+    text = ""
+    match spell_level:
+        case 1:
+            damage = random.randint(8,20)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Arcing Bolt at {spell_level} level) You weave electrical energy towards {target.name} hitting their {target.owner.name} for {damage} lightning damage."
+        case 2:
+            damage = random.randint(9, 24)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Arcing Bolt at {spell_level} level) You weave electrical energy towards {target.name} hitting their {target.owner.name} for {damage} lightning damage."
+        case 3:
+            damage = random.randint(11, 27)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Arcing Bolt at {spell_level} level) You weave electrical energy towards {target.name} hitting their {target.owner.name} for {damage} lightning damage."
+            if random.random() < 0.15:
+                available_parts = [part for name,part in target.owner.body_parts()
+                                   if name != target and part.current_hp > 0]
+                if available_parts:
+                    jump_target = random.choice(available_parts)
+                    extra_damage = random.randint(13, 31)
+                    jump_target.current_hp -= extra_damage
+                    text += f"The bolt leaps towards their {jump_target.name} dealing {extra_damage} damage."
+        case 4:
+            damage = random.randint(13, 31)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Arcing Bolt at {spell_level} level) You weave electrical energy towards {target.name} hitting their {target.owner.name} for {damage} lightning damage."
+            if random.random() < 0.15:
+                available_parts = [part for name,part in target.owner.body_parts()
+                                   if name != target and part.current_hp > 0]
+                if available_parts:
+                    jump_target = random.choice(available_parts)
+                    extra_damage = random.randint(13, 31)
+                    jump_target.current_hp -= extra_damage
+                    text += f"The bolt leaps towards their {jump_target.name} dealing {extra_damage} damage."
+                    
+        case 5:
+            damage = random.randint(15, 31)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Arcing Bolt at {spell_level} level) You weave electrical energy towards {target.name} hitting their {target.owner.name} for {damage} lightning damage."
+            if random.random() < 0.15:
+                available_parts = [part for name,part in target.owner.body_parts()
+                                   if name != target and part.current_hp > 0]
+                if available_parts:
+                    jump_target = random.choice(available_parts)
+                    extra_damage = random.randint(13, 31)
+                    jump_target.current_hp -= extra_damage
+                    text += f"The bolt leaps towards their {jump_target.name} dealing {extra_damage} damage."            
+        case 0:
+            damage = 1
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Arcing Bolt at {spell_level} level) You weave electrical energy towards {target.name} hitting their {target.owner.name} for {damage} lightning damage."
+    
+    return text
+
+def spell_balllightning(target,character,spell_level,multiplier = 1):
+    damage = 0
+    text = ""
+    match spell_level:
+        case 1:
+            damage = random.randint(6,16)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Ball Lightning at {spell_level} level) You call a living orb of lightning to assault {target.owner.name}, dealing X lightning damage to {target.name}"
+            if random.random() < 0.25:
+                update_condition(target.owner.conditions, ("overcharge",5))
+                text +=f"{target.owner.name} becomes charged with harmful energy!"
+        case 2:
+            damage = random.randint(7, 19)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Ball Lightning at {spell_level} level) You call a living orb of lightning to assault {target.owner.name}, dealing X lightning damage to {target.name}"
+            if random.random() < 0.25:
+                update_condition(target.owner.conditions, ("overcharge",5))
+                text +=f"{target.owner.name} becomes charged with harmful energy!"
+        case 3:
+            damage = random.randint(9, 21)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Arcing Bolt at {spell_level} level) You weave electrical energy towards {target.name} hitting their {target.owner.name} for {damage} lightning damage."
+            text = f"	(Casted Ball Lightning at {spell_level} level) You call a living orb of lightning to assault {target.owner.name}, dealing X lightning damage to {target.name}"
+            if random.random() < 0.3:
+                update_condition(target.owner.conditions, ("overcharge",5))
+                text +=f"{target.owner.name} becomes charged with harmful energy!"
+                
+        case 4:
+            damage = random.randint(11, 23)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Ball Lightning at {spell_level} level) You call a living orb of lightning to assault {target.owner.name}, dealing X lightning damage to {target.name}"
+            if random.random() < 0.35:
+                update_condition(target.owner.conditions, ("overcharge",5))
+                text +=f"{target.owner.name} becomes charged with harmful energy!"
+                    
+        case 5:
+            damage = random.randint(12, 24)
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Ball Lightning at {spell_level} level) You call a living orb of lightning to assault {target.owner.name}, dealing X lightning damage to {target.name}"
+            if random.random() < 0.40:
+                update_condition(target.owner.conditions, ("overcharge",5))
+                text +=f"{target.owner.name} becomes charged with harmful energy!"         
+        case 0:
+            damage = 1
+            target.current_hp -= damage
+            target.owner.current_endurance -= damage
+            text = f"	(Casted Ball Lightning at {spell_level} level) You call a living orb of lightning to assault {target.owner.name}, dealing X lightning damage to {target.name}"
+    
+    return text
+
 def spell_fireball(target,character,spell_level,multiplier = 1):
     damage = 0
     text = ""
@@ -327,6 +505,119 @@ def spell_fireball(target,character,spell_level,multiplier = 1):
             target.current_hp -= damage
             target.owner.current_endurance -= damage
             text = f"	Your fireball deals {damage} damage to {target.owner.name} {target.name}"
+    
+    return text
+
+
+def spell_winterbreath(target,character,spell_level,multiplier = 1):
+    damage = 0
+    text = ""
+    match spell_level:
+        case 1:
+            damage = random.randint(3, 8)
+            damage = damage * multiplier
+            text = f"	(Casted Winter Breath at {spell_level} level) Your breath becomes ice and blasts {target.name} for {damage} cold damage"
+            target.current_endurance -= damage
+            update_condition(target.conditions, ("cihll",4))
+            
+        case 2:
+            damage = random.randint(4, 9)
+            damage = damage * multiplier
+            text = f"	(Casted Winter Breath at {spell_level} level) Your breath becomes ice and blasts {target.name} for {damage} cold damage"
+            target.current_endurance -= damage
+            update_condition(target.conditions, ("cihll",4))
+        case 3:
+            damage = random.randint(5, 10)
+            damage = damage * multiplier
+            text = f"	(Casted Winter Breath at {spell_level} level) Your breath becomes ice and blasts {target.name} for {damage} cold damage"
+            chilled = update_condition(target.conditions, ("cihll",4))
+            if chilled:
+                extra_damage = 8
+                damage += extra_damage
+                text += f"The air coalesces into frozen daggers dealing an additional {extra_damage} cold damage."
+            target.current_endurance -= damage
+        case 4:
+            damage = random.randint(6, 11)
+            damage = damage * multiplier
+            text = f"	(Casted Winter Breath at {spell_level} level) Your breath becomes ice and blasts {target.name} for {damage} cold damage"
+            chilled = update_condition(target.conditions, ("cihll",4))
+            if chilled:
+                extra_damage = 10
+                damage += extra_damage
+                text += f"The air coalesces into frozen daggers dealing an additional {extra_damage} cold damage."
+            target.current_endurance -= damage
+        case 5:
+            damage = random.randint(6, 12)
+            damage = damage * multiplier
+            text = f"	(Casted Winter Breath at {spell_level} level) Your breath becomes ice and blasts {target.name} for {damage} cold damage"
+            chilled = update_condition(target.conditions, ("cihll",4))
+            if chilled:
+                extra_damage = 14
+                damage += extra_damage
+                text += f"The air coalesces into frozen daggers dealing an additional {extra_damage} cold damage."
+            target.current_endurance -= damage               
+        case 0:
+            damage = 1
+            damage = damage * multiplier
+            text = f"	(Casted Winter Breath at {spell_level} level) Your breath becomes ice and blasts {target.name} for {damage} cold damage"
+            target.current_endurance -= damage
+            update_condition(target.conditions, ("cihll",4))
+    
+    return text
+
+def spell_chantofcaina(target,character,spell_level,multiplier = 1):
+    damage = 0
+    text = ""
+    match spell_level:
+        case 1:
+            damage = random.randint(8, 14)
+            damage = damage * multiplier
+            text = f"	(Casted Chant of Caina at {spell_level} level) You sing words of unholy power causing {target.name} to take {damage} cold damage"
+            target.current_endurance -= damage
+            if target.current_endurance <= target.endurance * 0.05:
+                target.current_endurance = 0
+                text +=f" The {target.name} freezes and shatters into tiny pieces."
+            
+        case 2:
+            damage = random.randint(10, 15)
+            damage = damage * multiplier
+            text = f"	(Casted Chant of Caina at {spell_level} level) You sing words of unholy power causing {target.name} to take {damage} cold damage"
+            target.current_endurance -= damage
+            if target.current_endurance <= target.endurance * 0.05:
+                target.current_endurance = 0
+                text +=f" The {target.name} freezes and shatters into tiny pieces."
+        case 3:
+            damage = random.randint(12, 18)
+            damage = damage * multiplier
+            text = f"	(Casted Chant of Caina at {spell_level} level) You sing words of unholy power causing {target.name} to take {damage} cold damage"
+            target.current_endurance -= damage
+            if target.current_endurance <= target.endurance * 0.06:
+                target.current_endurance = 0
+                text +=f" The {target.name} freezes and shatters into tiny pieces."
+        case 4:
+            damage = random.randint(14, 20)
+            damage = damage * multiplier
+            text = f"	(Casted Chant of Caina at {spell_level} level) You sing words of unholy power causing {target.name} to take {damage} cold damage"
+            target.current_endurance -= damage
+            if target.current_endurance <= target.endurance * 0.07:
+                target.current_endurance = 0
+                text +=f" The {target.name} freezes and shatters into tiny pieces."
+        case 5:
+            damage = random.randint(14, 22)
+            damage = damage * multiplier
+            text = f"	(Casted Chant of Caina at {spell_level} level) You sing words of unholy power causing {target.name} to take {damage} cold damage"
+            target.current_endurance -= damage
+            if target.current_endurance <= target.endurance * 0.08:
+                target.current_endurance = 0
+                text +=f" The {target.name} freezes and shatters into tiny pieces."                   
+        case 0:
+            damage = 1
+            damage = damage * multiplier
+            text = f"	(Casted Chant of Caina at {spell_level} level) You sing words of unholy power causing {target.name} to take {damage} cold damage"
+            target.current_endurance -= damage
+            if target.current_endurance <= target.endurance * 0.05:
+                target.current_endurance = 0
+                text +=f" The {target.name} freezes and shatters into tiny pieces."
     
     return text
 
@@ -810,6 +1101,34 @@ def wait_for_player_action(ui_manager,window,character,creature):
     button_Spell.enable()
     button_Skill.enable()
     return action,chosen_weapon_spell
+
+
+def update_condition(conditions_set, new_condition):
+    # Extract the name and duration from the new condition
+    condition_name, new_duration = new_condition[0], new_condition[1]
+    
+    # Track if the condition existed
+    condition_existed = False
+    
+    # Find if a condition with the same name exists
+    existing_condition = None
+    for condition in conditions_set:
+        if condition[0] == condition_name:
+            existing_condition = condition
+            condition_existed = True
+            break
+    
+    # If the condition exists and the new duration is longer, replace it
+    if existing_condition:
+        existing_duration = existing_condition[1]
+        if new_duration > existing_duration:
+            conditions_set.remove(existing_condition)
+            conditions_set.add(new_condition)
+    else:
+        # If the condition doesn't exist, just add the new one
+        conditions_set.add(new_condition)
+    
+    return condition_existed
 
 def resolve_character_conditions(character):
     text = ""
@@ -1303,8 +1622,13 @@ testy.available_weapons.append(quarterstaff)
 testy.available_weapons.append(katar)
 
 
+
+arcing_bolt = Spell("Arcing Bolt", [spell_arcingbolt], 5, 1)
 fireball = Spell("Fireball", [spell_fireball], 5, 1)
+holy_fire = Spell("Holy Fire", [spell_holyfire], 5, 1)
 fissure = Spell("Fissure",[spell_fissure],5,1,targeted= False)
+winter_breath = Spell("Winter Breath",[spell_winterbreath],5,1,targeted= False)
+chant_of_caina = Spell("Chant of Caina",[spell_chantofcaina],5,1,targeted= False)
 wallop = Spell("Wallop",[skill_wallop],5,1,required_weapon_family = "defense")
 character_window_reference = None
 current_slide_text = current_slide.text
