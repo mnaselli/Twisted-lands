@@ -1,47 +1,71 @@
 Cloth (no armor)
+Tier I:
+Ragged hood | 0 | +1% dodge
+Ragged tunic | 0 | +1% dodge
+Ragged gloves | 0 | +1% dodge
+Ragged boots | 0 | +1% dodge
 
+Tier II:
 Hood | 0 | +4% dodge
 Linen Armor | 0 | +2% dodge
 Gloves | 0 | +5% dodge
 Traveller's boots | 0 | +5% dodge
 Cowl | 0 | +7 initiative
-Silk tunic | 0 | +4 initiative
-Silk gloves | 0 | +6 initiative
-Slippers | 0 | +6 initiative
+Silk tunic | 0 | +1 initiative
+Silk gloves | 0 | +2 initiative
+Slippers | 0 | +1 initiative
 
 
 Light
+Tier I:
+Hide hat | 1 |
+Hide Vest | 2 |
+Hide gloves | 1 |
+Hide boots | 1 |
 
-Leather Cap | 0-2 | 
-Leather Vest | 0-3 | 
-Leather Gloves | 0-2 | 
-Leather boots | 0-2 | 
-Shako | 0-3 | -2% dodge
-Studded Doublet | 0-4 | -1% dodge
-Studded Armbands | 0-3 | -2% dodge
-Reinforced Boots | 0-3 | -2% dodge
+Tier II:
+Leather Cap | 2 | 
+Leather Vest | 3 | 
+Leather Gloves | 2 | 
+Leather boots | 2 | 
+Shako | 3 | -2% dodge
+Studded Doublet | 4 | -1% dodge
+Studded Armbands | 3 | -2% dodge
+Reinforced Boots | 3 | -2% dodge
 
 Medium
+Tier I:
+Rusted Coif | 3 | -2% dodge -1 initiative
+Rusted chainmail | 4 | -1% dodge -1 initiative
+Rusted Gloves | 3 |  -2% dodge -1 initiative
+Rusted Sollerets | 3 | -2% dodge - 1 initiative
 
-Mail coif | 1-2 | -2% dodge 
-Chainmail | 1-3 | -1% dodge
-Mail Gloves | 1-2 |  -2% dodge
-Sollerets | 1-2 | -2% dodge
-Bronze Helmet | 1-3 | -4% dodge
-Bronze Cuirass | 1-4 | -2% dodge
-Bronze Wristbands | 1-3 | -3% dodge
-Bronze Boots | 1-3 | -3% dodge
+Tier II:
+Mail coif | 4 | -2% dodge -1 initiative 
+Chainmail | 5 | -1% dodge -1 initiative
+Mail Gloves | 4 |  -2% dodge -1 initiative
+Sollerets | 4 | -2% dodge - 1 initiative
+Bronze Helmet | 5 | -4% dodge
+Bronze Cuirass | 6 | -2% dodge
+Bronze Wristbands | 5 | -3% dodge
+Bronze Boots | 5 | -3% dodge
 
 Heavy
+Tier I:
+Iron Helmet | 5 | -4% dodge -1 initiative
+Iron Cuirass | 6 | -2% dodge -1 initiative
+Iron Gauntlets | 5 |  -3% dodge -1 initiative
+Iron Sabatons | 5 | -3% dodge -1 initiative
 
-Steel Helmet | 2-3 | -4% dodge 
-Steel Cuirass | 2-4 | -2% dodge
-Steel Gauntlets | 2-3 |  -3% dodge
-Steel Sabatons | 2-3 | -3% dodge
-Greathelm | 2-5 | -6% dodge
-Platemail | 2-6 | -5% dodge
-Plate Vambraces | 2-5 | -6% dodge
-Plate Greaves | 2-5 | -6% dodge
+Tier II:
+Steel Helmet | 6 | -4% dodge -1 initiative
+Steel Cuirass | 7 | -2% dodge -1 initiative
+Steel Gauntlets | 6 |  -3% dodge -1 initiative
+Steel Sabatons | 6 | -3% dodge -1 initiative
+Greathelm | 7 | -5% dodge
+Platemail | 8 | -6% dodge
+Plate Vambraces | 7 | -5% dodge
+Plate Greaves | 7 | -5% dodge
 
 Off-hands
 Buckler | 10% block, 5% dodge
